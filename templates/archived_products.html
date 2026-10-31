@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Archived products{% endblock %}
+{% block content %}
+<h1>Archived products</h1>
+<p>Archived products retain sales, stock records and audit history, and are unavailable for new operations. Stock must be zero before archiving. Reactivation is not available.</p>
+<p>Permanent deletion is an administrator-only API action (<code>DELETE /products/&lt;id&gt;</code>, <code>mode: permanent</code>, current <code>expected_version</code> and CSRF token required). It is allowed only when no inventory, sales, alerts, predictions or audit records exist. A zero-stock inventory record still counts as a dependency.</p>
+<a href="{{ url_for('admin_inventory' if current_user.role == 'admin' else 'inventory_page') }}">Back to active inventory</a>
+<section class="card"><div class="table-scroll"><table><caption>Retained archived product definitions; archive times are UTC.</caption><thead><tr><th scope="col">ID</th><th scope="col">Product</th><th scope="col">Category</th><th scope="col">Status</th><th scope="col">Archived at (UTC)</th></tr></thead><tbody>
+{% for product in products %}<tr><td>{{ product.product_id }}</td><td>{{ product.name }}</td><td>{{ product.category or 'Not set' }}</td><td>Archived</td><td>{{ product.archived_at or 'Unknown' }}</td></tr>{% else %}<tr><td colspan="5">No archived products.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

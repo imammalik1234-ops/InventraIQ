@@ -1,0 +1,45 @@
+{% if workspace_visuals is defined and workspace_visuals %}
+{% set v=workspace_visuals %}
+<div class="chart-grid" data-workspace-charts>
+{% macro stock_chart() %}
+<section class="chart-panel" aria-labelledby="stock-chart-heading">
+  <div class="section-heading"><div><h2 id="stock-chart-heading">{{ 'Across your branches' if report.scope.consolidated else 'Available to operate' }}</h2></div><span class="badge neutral">Units</span></div>
+
+  <div class="chart-legend"><span><i class="series-available"></i>Available</span><span><i class="series-reserved"></i>Reserved</span><span><i class="series-held"></i>Held / quarantined</span></div>
+  <div class="chart-plot" role="region" tabindex="0" aria-label="Scrollable inventory chart"><svg class="evidence-chart" viewBox="0 0 600 {{ [v.stock_branches|length*64+20,90]|max }}" role="img" aria-labelledby="stock-svg-title stock-svg-desc">
+    <title id="stock-svg-title">Physical and available inventory by authorized branch</title><desc id="stock-svg-desc">Recorded units. Read the exact values in the accessible stock table below. Held stock is not available for sale.</desc>
+    {% for b in v.stock_branches %}{% set y=loop.index0*64+14 %}
+    <text x="0" y="{{ y+12 }}" class="chart-label">{{ b.label|branch_name }}</text>
+    <rect x="108" y="{{ y }}" width="{{ b.available/v.stock_max*390 }}" height="22" class="series-available" rx="2"/>
+    <rect x="{{ 108+b.available/v.stock_max*390 }}" y="{{ y }}" width="{{ b.reserved/v.stock_max*390 }}" height="22" class="series-reserved"/>
+    <rect x="{{ 108+(b.available+b.reserved)/v.stock_max*390 }}" y="{{ y }}" width="{{ (b.quarantined+b.unavailable)/v.stock_max*390 }}" height="22" class="series-held" rx="2"/>
+    <text x="520" y="{{ y+16 }}" class="chart-value">{{ b.on_hand }}</text>
+    <text x="108" y="{{ y+40 }}" class="chart-label">{{ b.available }} available · {{ b.reserved }} reserved · {{ b.quarantined+b.unavailable }} held</text>
+    {% else %}<text x="20" y="45" class="chart-label">No authorized inventory branches</text>{% endfor %}
+  </svg></div>
+  <details class="review-details"><summary>View stock figures</summary><div class="table-scroll" tabindex="0" role="region" aria-label="Chart stock data"><table><caption>Stock as of {{ v.as_of }}</caption><thead><tr><th scope="col">Branch</th><th scope="col">Physical</th><th scope="col">Available</th><th scope="col">Reserved</th><th scope="col">Quarantined</th><th scope="col">Held (all reasons)</th></tr></thead><tbody>{% for b in v.stock_branches %}<tr><th scope="row">{{ b.label|branch_name }}</th><td>{{ b.on_hand }}</td><td>{{ b.available }}</td><td>{{ b.reserved }}</td><td>{{ b.quarantined }}</td><td>{{ b.quarantined+b.unavailable }}</td></tr>{% else %}<tr><td colspan="6">No stock recorded.</td></tr>{% endfor %}</tbody></table></div></details>
+</section>
+{% endmacro %}
+{% if title in ['Dashboard','Analytics','Reports','Sales'] %}
+<section class="chart-panel" aria-labelledby="sales-chart-heading">
+  <div class="section-heading"><div><h2 id="sales-chart-heading">Sales and returns</h2></div><span class="badge neutral">MYR</span></div>
+  <p class="chart-context">{{ v.period.start }} – {{ v.period.end }}</p>
+  <div class="chart-legend"><span><i class="series-available"></i>Gross sales</span><span><i class="series-refunds"></i>Refunds</span></div>
+  <div class="chart-plot" role="region" tabindex="0" aria-label="Scrollable sales chart"><svg class="evidence-chart" viewBox="0 0 600 200" role="img" aria-labelledby="sales-svg-title sales-svg-desc"><title id="sales-svg-title">Recorded daily sales and refunds in MYR</title><desc id="sales-svg-desc">Transaction-time totals on their own business dates. Days without recorded headers show zero recorded money, not zero demand. Exact daily figures follow.</desc>
+    {% for y in [30,70,110,160] %}<path d="M70 {{ y }}H580" class="chart-gridline"/>{% endfor %}
+    <text x="0" y="34" class="chart-label">{{ '%0.2f'|format(v.sales_max/100) }}</text><text x="0" y="164" class="chart-label">0 MYR</text>
+    {% set denom=[v.sales_days|length-1,1]|max %}
+    <polygon points="70,160 {% for d in v.sales_days %}{{ 70+loop.index0*510/denom }},{{ 160-d.gross_minor/v.sales_max*130 }} {% endfor %}{{ 70+(v.sales_days|length-1)*510/denom }},160" class="sales-area"/>
+    <polyline points="{% for d in v.sales_days %}{{ 70+loop.index0*510/denom }},{{ 160-d.gross_minor/v.sales_max*130 }} {% endfor %}" class="chart-line series-sales-line"/>
+    <polyline points="{% for d in v.sales_days %}{{ 70+loop.index0*510/denom }},{{ 160-d.refund_minor/v.sales_max*130 }} {% endfor %}" class="chart-line series-refund-line"/>
+    {% for d in v.sales_days %}<circle cx="{{ 70+loop.index0*510/denom }}" cy="{{ 160-d.gross_minor/v.sales_max*130 }}" r="2.5" class="series-available"><title>{{ d.date }}: gross MYR {{ d.gross }}, refunds MYR {{ d.refunds }}</title></circle><circle cx="{{ 70+loop.index0*510/denom }}" cy="{{ 160-d.refund_minor/v.sales_max*130 }}" r="2.5" class="series-refunds"><title>{{ d.date }}: refunds MYR {{ d.refunds }}</title></circle>{% endfor %}
+    <text x="70" y="190" class="chart-label">{{ v.period.start }}</text><text x="580" y="190" text-anchor="end" class="chart-label">{{ v.period.end }}</text>
+  </svg></div>
+  {% if not v.has_recorded_sales %}<p class="notice neutral">No sales or refunds in this period.</p>{% endif %}
+
+  <details class="review-details"><summary>View daily figures</summary><div class="table-scroll" tabindex="0" role="region" aria-label="Chart daily sales data"><table><caption>{{ 'Simulated ' if v.synthetic else '' }}MYR by branch business date, {{ v.period.start }} to {{ v.period.end }}.</caption><thead><tr><th scope="col">Date</th><th scope="col">Gross MYR</th><th scope="col">Refunds MYR</th></tr></thead><tbody>{% for d in v.sales_days %}<tr><th scope="row">{{ d.date }}</th><td>{{ d.gross }}</td><td>{{ d.refunds }}</td></tr>{% endfor %}</tbody></table></div></details>
+</section>
+{% endif %}
+{% if title in ['Dashboard','Analytics','Reports'] %}{{ stock_chart() }}{% endif %}
+</div>
+{% endif %}

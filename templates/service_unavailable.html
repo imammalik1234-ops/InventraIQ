@@ -1,0 +1,13 @@
+{% extends 'auth-base.html' %}
+{% from 'components/ui.html' import icon %}
+{% block title %}Workspace unavailable{% endblock %}
+{% block content %}
+<div class="service-state" role="alert">
+  <span class="error-symbol">{{ icon('clock',28) }}</span>
+  <p class="eyebrow">PLEASE TRY AGAIN LATER</p>
+  <h1>We couldn’t complete<br>your request.</h1>
+  <p class="page-description">{{ message }}</p>
+  <p class="reference-code">Support reference <strong>{{ reference }}</strong></p>
+  <a class="button button-secondary" href="{{ url_for('role_selection') }}">Return to sign in {{ icon('arrow',16) }}</a>
+</div>
+{% endblock %}

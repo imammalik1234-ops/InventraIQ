@@ -1,0 +1,13 @@
+{% extends 'auth-base.html' %}
+{% from 'components/ui.html' import icon %}
+{% block title %}Choose your workspace{% endblock %}
+{% block content %}
+<p class="eyebrow">WELCOME TO INVENTRAIQ</p>
+<h1>Your operations,<br>in focus.</h1>
+<p class="page-description">Choose your workspace.</p>
+<div class="role-options">
+  <a class="role-option" href="{{ url_for('admin_login') }}"><span class="role-option-icon">{{ icon('branches',22) }}</span><div><strong>Headquarters</strong><small>Company oversight, analysis and administration</small></div>{{ icon('arrow',18) }}</a>
+  <a class="role-option" href="{{ url_for('staff_login') }}"><span class="role-option-icon">{{ icon('box',22) }}</span><div><strong>Branch workspace</strong><small>Daily stock, sales and branch operations</small></div>{{ icon('arrow',18) }}</a>
+</div>
+<p class="auth-footnote">Need an account? Contact your administrator.</p>
+{% endblock %}

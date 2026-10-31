@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, csrf %}
+{% macro reason() %}
+  <label>
+    Reason
+    <input name="reason" required maxlength="255">
+  </label>
+{% endmacro %}
+{% macro policy_fields(p={}) %}
+  <label>
+    Actual expiry requirement
+    <select name="require_expiry" required>
+      <option value="">
+        Choose explicitly
+      </option>
+      <option value="true" {% if p.get('require_expiry') == true %}selected{% endif %}>
+        Required
+      </option>
+      <option value="false" {% if p.get('require_expiry') == false %}selected{% endif %}>
+        Optional / non-perishable
+      </option>
+    </select>
+  </label>
+  {% for key,label in [('early_days','Early warning days'),('high_days','High priority days'),('critical_days','Critical days'),('min_remaining_days_on_receipt','Minimum remaining days on receipt'),('min_remaining_days_on_transfer_receipt','Minimum remaining days on future transfer receipt')] %}
+    <label>
+      {{ label }}
+      <input type="number" name="{{ key }}" value="{{ p.get(key,'') }}" required min="0" max="3650" step="1">
+    </label>
+  {% endfor %}
+  <label>
+    Expected shelf life (optional metadata, days)
+    <input type="number" name="expected_shelf_life_days" value="{{ p.get('expected_shelf_life_days') or '' }}" min="1" max="3650">
+  </label>
+  {{ reason() }}
+{% endmacro %}
+{% macro assortment_fields(a={}) %}
+        <label>
+          Assortment
+          <select name="enabled">
+            <option value="true" {% if a.get("enabled",true) %}selected{% endif %}>
+              Approved
+            </option>
+            <option value="false" {% if not a.get("enabled",true) %}selected{% endif %}>
+              Disabled
+            </option>
+          </select>
+        </label>
+        <label>
+          Branch price override (blank inherits HQ)
+          <input type="number" name="sale_price_override" value="{{ a.get('sale_price_override') if a.get('sale_price_override') is not none else '' }}" min="0" step="0.01">
+        </label>
+        <label>
+          Reorder override (optional)
+          <input type="number" name="reorder_level_override" value="{{ a.get('reorder_level_override') if a.get('reorder_level_override') is not none else '' }}" min="0" step="1">
+        </label>
+        {{ reason() }}
+{% endmacro %}
+{% block title %}
+  Shared product catalog
+{% endblock %}
+{% block content %}
+  {% call page_header('Shared product catalog','A product code (SKU) identifies one sellable variant. Pricing and expiry rules are shared across approved branches.','CATALOG / PRODUCTS') %}
+    <a class="button button-secondary" href="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}">Lot inventory</a>
+    {% if can_adjust_stock and g.authz_scope and not g.authz_scope.consolidated %}<a class="button button-primary" href="{{ url_for('catalog.receiving_page',branch_id=request.args.get('branch_id')) }}">Receive stock</a>{% endif %}
+  {% endcall %}
+  <p class="workflow-note">A product code (SKU) identifies one sellable product variant. Keep the current structured variant details unless your administrator provides valid JSON values.</p>
+  <dl class="summary-ledger"><div><dt>Product definitions</dt><dd>{{ skus|length }}</dd></div><div><dt>Categories</dt><dd>{{ categories|length }}</dd></div><div><dt>Branch offers</dt><dd>{{ assortments|length }}</dd></div><div><dt>Price currency</dt><dd>MYR</dd></div></dl>
+  <section class="work-section">
+    <h2>
+      Product definitions
+    </h2>
+    <div class="catalog-search workbench-toolbar" hidden><label for="catalog-query">Find product</label><input id="catalog-query" type="search" data-catalog-query placeholder="Product code or variant name"><p class="field-hint" role="status" data-catalog-count>{{ skus|length }} products shown</p><div class="action-group"><button type="button" class="button button-secondary" data-catalog-prev>Previous products</button><button type="button" class="button button-secondary" data-catalog-next>Next products</button></div></div>
+    <div class="table-scroll" role="region" tabindex="0" aria-labelledby="sku-definitions-caption"><table>
+      <caption id="sku-definitions-caption">Shared sellable variants. Stock quantities and actual expiry dates are recorded on branch lots.</caption>
+      <thead><tr><th scope="col">Product code / variant</th><th scope="col">Status</th><th scope="col" class="numeric">HQ price MYR</th><th scope="col">Expiry policy</th>{% if can_manage_catalog %}<th scope="col">Manage</th>{% endif %}</tr></thead><tbody>
+    {% for sku in skus %}
+      <tr class="catalog-entry" data-catalog-entry="{{ sku.code }} {{ sku.name }}" data-sku-code="{{ sku.code }}">
+        <th scope="row">{{ sku.code }}<span class="cell-secondary">{{ sku.name }}</span></th>
+        <td><span class="status-label">{{ 'Active' if sku.active else 'Archived' }}</span></td>
+        <td class="numeric">{{ sku.default_price if sku.default_price is not none else 'Unknown' }}</td>
+        <td>{% if sku.policy %}{{ 'Date required' if sku.policy.require_expiry else 'Undated permitted' }}{% else %}<span class="status-label status-review">Policy review required</span>{% endif %}</td>
+        {% if can_manage_catalog %}<td>
+          <details class="workflow-action"><summary>Edit or archive {{ sku.code }}</summary>
+          {% if sku.active %}
+            <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Archive SKU {{ sku.code }}" data-enhance-form>
+              {{ csrf() }}
+              <input type="hidden" name="catalog_action" value="archive">
+              <input type="hidden" name="sku_id" value="{{ sku.sku_id }}">
+              <input type="hidden" name="expected_version" value="{{ sku.version }}">
+              {{ reason() }}
+              <button class="button button-danger" type="submit">
+                Archive SKU {{ sku.code }}
+              </button>
+            </form>
+          {% endif %}
+          <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Edit SKU {{ sku.code }}" data-enhance-form>
+            {{ csrf() }}
+            <input type="hidden" name="catalog_action" value="sku">
+            <input type="hidden" name="sku_id" value="{{ sku.sku_id }}">
+            <input type="hidden" name="expected_version" value="{{ sku.version }}">
+            <input type="hidden" name="code" value="{{ sku.code }}">
+            <label>
+              Sellable variant name
+              <input name="name" value="{{ sku.name }}" required maxlength="100">
+            </label>
+            <label>
+              Category
+              <select name="category_id">
+                {% for category in categories %}
+                  <option value="{{ category.category_id }}" {% if sku.category_id==category.category_id %}selected{% endif %}>
+                    {{ category.code }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Unit
+              <input name="unit" value="{{ sku.unit }}" required maxlength="20">
+            </label>
+            <label>
+              HQ default price
+              <input type="number" name="default_price" value="{{ sku.default_price or '' }}" min="0" step="0.01" required>
+            </label>
+            <label>
+              Variant attributes
+              <input name="variant_attributes" value="{{ sku.variant_attributes|tojson|forceescape }}" required>
+            </label>
+            <label>
+              Status
+              <select name="active">
+                <option value="true" {% if sku.active %}selected{% endif %}>
+                  Active
+                </option>
+                <option value="false" {% if not sku.active %}selected{% endif %}>
+                  Archived
+                </option>
+              </select>
+            </label>
+            {{ reason() }}
+            <button class="button button-secondary" type="submit">
+              Save SKU {{ sku.code }}
+            </button>
+          </form>
+          </details></td>
+        {% endif %}
+      </tr>
+    {% else %}
+      <tr><td colspan="{{ 5 if can_manage_catalog else 4 }}">No database SKUs have been configured. An HQ administrator can create the first product definition.</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  </section>
+  {% if can_manage_catalog %}
+    <details class="workflow-tools"><summary>Catalog administration <span class="text-secondary">Categories, product creation and label timezone</span></summary><div class="form-stack">
+      <section class="work-section">
+        <h2>
+          Category identities
+        </h2>
+        <p>
+          {% for category in categories %}
+            {{ category.code }} (#{{ category.category_id }}) {{ category.display_name }}{{ ', ' if not loop.last else '' }}
+          {% endfor %}
+        </p>
+        <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Create category" data-enhance-form>
+          {{ csrf() }}
+          <input type="hidden" name="catalog_action" value="category">
+          <label>
+            Category code
+            <input name="code" required maxlength="80">
+          </label>
+          <label>
+            Category name
+            <input name="display_name" required maxlength="100">
+          </label>
+          {{ reason() }}
+          <button class="button button-primary" type="submit">
+            Create category
+          </button>
+        </form>
+      </section>
+      <section class="work-section">
+        <h2>
+          Label interpretation timezone
+        </h2>
+        <p>
+          Approved company timezone: {{ settings.label_timezone or 'Not configured' }}. Changing this setting never recomputes accepted lot expiry instants.
+        </p>
+        <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Label timezone" data-enhance-form>
+          {{ csrf() }}
+          <input type="hidden" name="catalog_action" value="settings">
+          <input type="hidden" name="expected_version" value="{{ settings.version }}">
+          <label>
+            IANA label timezone
+            <input name="label_timezone" value="{{ settings.label_timezone or '' }}" required maxlength="64">
+          </label>
+          {{ reason() }}
+          <button class="button button-primary" type="submit">
+            Approve timezone
+          </button>
+        </form>
+      </section>
+      <section class="work-section">
+        <h2>
+          Create sellable SKU
+        </h2>
+        <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Create SKU" data-enhance-form>
+          {{ csrf() }}
+          <input type="hidden" name="catalog_action" value="sku">
+          <input type="hidden" name="expected_version" value="0">
+          <input type="hidden" name="active" value="true">
+          <label>
+            Stable SKU code
+            <input name="code" required maxlength="80">
+          </label>
+          <label>
+            Sellable variant name
+            <input name="name" required maxlength="100" placeholder="Coca-Cola 500ml">
+          </label>
+          <label>
+            Category
+            <select name="category_id" required>
+              {% for category in categories %}
+                <option value="{{ category.category_id }}">
+                  {{ category.code }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Unit
+            <input name="unit" value="unit" required maxlength="20">
+          </label>
+          <label>
+            HQ default price
+            <input type="number" name="default_price" min="0" max="99999999.99" step="0.01" required>
+          </label>
+          <label>
+            Structured variant details (JSON text values)
+            <input name="variant_attributes" value="{}" required>
+          </label>
+          {{ reason() }}
+          <button class="button button-primary" type="submit">
+            Create SKU
+          </button>
+        </form>
+      </section>
+    </div></details>
+  {% endif %}
+  {% if can_manage_catalog %}
+    <details class="workflow-tools"><summary>Expiry policies and branch assortment <span class="text-secondary">Review policy revisions and branch prices</span></summary>
+    <section class="work-section">
+      <h2>
+        Expiry policies
+      </h2>
+      <p>
+        Thresholds are inclusive. Supply a complete replacement policy for SKU overrides. Expected shelf life never supplies an actual expiry date. Enabling required dates holds undated lots for review.
+      </p>
+      {% for p in policy_rows %}
+        {% set identity = (categories|selectattr('category_id','equalto',p.key)|first) if p.kind=='category' else (skus|selectattr('sku_id','equalto',p.key)|first) %}
+        <details class="workflow-action"><summary>{{ p.kind|capitalize }} {{ identity.code if identity else '#' ~ p.key }} · revision {{ p.revision }}</summary>
+        <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Policy {{ p.kind }} {{ p.key }}" data-enhance-form>
+          {{ csrf() }}
+          <input type="hidden" name="catalog_action" value="policy">
+          <input type="hidden" name="kind" value="{{ p.kind }}">
+          <input type="hidden" name="key" value="{{ p.key }}">
+          <input type="hidden" name="expected_revision" value="{{ p.revision }}">
+          <h3 class="full">
+            {{ p.kind }} #{{ p.key }} revision {{ p.revision }}
+          </h3>
+          {{ policy_fields(p) }}
+          {% if p.kind=='sku' %}
+            <label>
+              Override action
+              <select name="remove">
+                <option value="false">
+                  Save full override
+                </option>
+                <option value="true">
+                  Remove override and inherit category
+                </option>
+              </select>
+            </label>
+          {% endif %}
+          <button class="button button-secondary" type="submit">
+            Save policy {{ p.kind }} {{ p.key }}
+          </button>
+        </form>
+        </details>
+      {% endfor %}
+      <h3>
+        Configure a new category policy or SKU override
+      </h3>
+      <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Create expiry policy" data-enhance-form data-policy-create>
+        {{ csrf() }}
+        <input type="hidden" name="catalog_action" value="policy">
+        <input type="hidden" name="expected_revision" value="0">
+        <label>
+          Policy source
+          <select name="kind" data-policy-kind>
+            <option value="category">
+              Category default
+            </option>
+            <option value="sku">
+              Full SKU override
+            </option>
+          </select>
+        </label>
+        <label>
+          Category or SKU
+          <select name="key" required data-policy-target>
+            <optgroup label="Category defaults" data-policy-options="category">
+              {% for category in categories %}<option value="{{ category.category_id }}">{{ category.code }} — {{ category.display_name }} (#{{ category.category_id }})</option>{% endfor %}
+            </optgroup>
+            <optgroup label="SKU overrides" data-policy-options="sku">
+              {% for sku in skus %}<option value="{{ sku.sku_id }}">{{ sku.code }} — {{ sku.name }} (#{{ sku.sku_id }})</option>{% endfor %}
+            </optgroup>
+          </select>
+        </label>
+        {{ policy_fields() }}
+        <button class="button button-primary" type="submit">
+          Create expiry policy
+        </button>
+      </form>
+    </section>
+    <section class="work-section">
+      <h2>
+        Branch assortment and prices
+      </h2>
+      {% for a in assortments %}
+        {% set branch=branches|selectattr('branch_id','equalto',a.branch_id)|first %}
+        {% set sku=skus|selectattr('sku_id','equalto',a.sku_id)|first %}
+        <details class="workflow-action"><summary>{{ branch.code if branch else a.branch_id }} / {{ sku.code if sku else a.sku_id }} · MYR {{ a.effective_price }} · {{ 'Approved' if a.enabled else 'Disabled' }} · revision {{ a.version }}</summary>
+          <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Edit assortment branch {{ a.branch_id }} SKU {{ a.sku_id }}" data-enhance-form>
+            {{ csrf() }}
+            <input type="hidden" name="catalog_action" value="assortment">
+            <input type="hidden" name="branch_id" value="{{ a.branch_id }}">
+            <input type="hidden" name="sku_id" value="{{ a.sku_id }}">
+            <input type="hidden" name="expected_version" value="{{ a.version }}">
+            {{ assortment_fields(a) }}
+            <button class="button button-secondary" type="submit">Save assortment</button>
+          </form>
+        </details>
+      {% endfor %}
+      <details class="workflow-action"><summary>Create branch offer</summary>
+      <form class="form-grid" method="POST" action="{{ url_for('catalog.catalog_action') }}" aria-label="Branch assortment" data-enhance-form>
+        {{ csrf() }}
+        <input type="hidden" name="catalog_action" value="assortment">
+        <label>
+          Branch
+          <select name="branch_id">
+            {% for branch in branches %}
+              <option value="{{ branch.branch_id }}">
+                {{ branch.code }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          SKU
+          <select name="sku_id">
+            {% for sku in skus %}
+              <option value="{{ sku.sku_id }}">
+                {{ sku.code }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <input type="hidden" name="expected_version" value="0">
+        {{ assortment_fields() }}
+        <button class="button button-primary" type="submit">Create assortment</button>
+      </form>
+      </details>
+    </section>
+    </details>
+  {% endif %}
+{% endblock %}

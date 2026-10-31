@@ -1,0 +1,79 @@
+<section class="work-section" aria-labelledby="branch-facts-heading">
+  <div class="section-heading">
+<div>
+<h2 id="branch-facts-heading">{{ 'Sales by branch' if financial else 'Branch stock' }}</h2>
+
+</div>
+    {% if overview %}
+<a href="{{ url_for('analytics',branch_id=request.args.get('branch_id'),start=report.filters.start,end=report.filters.end) }}">Compare performance →</a>
+{% endif %}
+</div>
+  <div class="table-scroll" role="region" aria-labelledby="included-branch-caption" tabindex="0">
+<table class="comparison-table">
+    <caption id="included-branch-caption">{{ 'MYR totals. Unpriced historical sales are excluded.' if financial else 'Current stock by branch.' }}</caption>
+    <thead>
+<tr>
+<th scope="col">Branch</th>
+      {% if financial %}
+<th scope="col" class="numeric">Sold units</th>
+<th scope="col" class="numeric">Unpriced units</th>
+<th scope="col" class="numeric">Gross MYR</th>
+<th scope="col" class="numeric">Refunds MYR</th>
+<th scope="col" class="numeric">Net MYR</th>
+      {% else %}
+<th scope="col" class="numeric">Physical units</th>
+<th scope="col" class="numeric">Available units</th>
+<th scope="col" class="numeric">Expired lots</th>
+<th scope="col" class="numeric">Warning lots</th>
+{% if title=='Analytics' %}
+<th scope="col" class="numeric">Review-held lots</th>
+<th scope="col" class="numeric">Low-stock SKUs</th>
+<th scope="col" class="numeric">Net MYR</th>
+{% endif %}{% endif %}
+      </tr>
+</thead>
+    <tbody>
+{% for row in report.branches %}
+<tr data-branch-fact="{{ row.branch_id }}">
+<th scope="row">
+<a href="{{ url_for('admin_inventory' if is_admin else 'inventory_page',branch_id=row.branch_id,start=report.filters.start,end=report.filters.end) }}">{{ row.name|branch_name }}</a>
+<span class="cell-secondary">{{ row.code }}</span>
+</th>
+      {% if financial %}
+<td class="numeric">{{ row.sold_units }}</td>
+<td class="numeric">{{ row.unknown_revenue_units }}</td>
+<td class="numeric">{{ row.recorded_gross }}</td>
+<td class="numeric">{{ row.recorded_refunds }}</td>
+<td class="numeric emphasis">{{ row.recorded_net }}</td>
+      {% else %}
+<td class="numeric">{{ row.on_hand }}</td>
+<td class="numeric emphasis">{{ row.available }}</td>
+<td class="numeric">{{ row.expired_lots }}</td>
+<td class="numeric">{{ row.warning_lots }}</td>
+{% if title=='Analytics' %}
+<td class="numeric">{{ row.review_lots }}</td>
+<td class="numeric">{{ row.low_stock_skus }}</td>
+<td class="numeric">{{ row.recorded_net }}</td>
+{% endif %}{% endif %}
+    </tr>
+{% else %}
+<tr>
+<td colspan="{{ 6 if financial else 8 if title=='Analytics' else 5 }}">No authorized branch records.</td>
+</tr>
+{% endfor %}
+</tbody>
+    {% if financial %}
+<tfoot>
+<tr data-operational-summary data-gross="{{ report.total.recorded_gross }}" data-refunds="{{ report.total.recorded_refunds }}" data-net="{{ report.total.recorded_net }}">
+<th scope="row">Selected scope total</th>
+<td class="numeric">{{ report.total.sold_units }}</td>
+<td class="numeric">{{ report.total.unknown_revenue_units }}</td>
+<td class="numeric">{{ report.total.recorded_gross }}</td>
+<td class="numeric">{{ report.total.recorded_refunds }}</td>
+<td class="numeric emphasis">{{ report.total.recorded_net }}</td>
+</tr>
+</tfoot>
+{% endif %}
+  </table>
+</div>
+</section>

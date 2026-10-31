@@ -1,0 +1,23 @@
+{
+  "version": "inventory-aperture-v1",
+  "name": "InventraIQ",
+  "view_box": "0 0 32 32",
+  "planes": [
+    "M4 4H26Q28 4 28 6V12H24V8H8V12H2V6Q2 4 4 4Z",
+    "M4 12H12V20H4ZM20 12H30V14H28V16H30V20H20Z",
+    "M2 20H8V24H24V20H28V26Q28 28 26 28H4Q2 28 2 26Z"
+  ],
+  "colors": {
+    "emerald": "#315cda",
+    "ink": "#182338",
+    "light": "#ffffff"
+  },
+  "wordmark": {
+    "font_family": "Segoe UI, Arial, sans-serif",
+    "font_size": 23,
+    "font_weight": 650,
+    "letter_spacing": "-0.6",
+    "x": 43,
+    "y": 25
+  }
+}

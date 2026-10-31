@@ -1,0 +1,12 @@
+{% from 'components/ui.html' import icon,csrf %}
+<p class="eyebrow">{{ 'HEADQUARTERS' if login_role=='admin' else 'BRANCH WORKSPACE' }}</p>
+<h1>Welcome back.</h1>
+<p class="page-description">Sign in to your {{ 'company' if login_role=='admin' else 'branch' }} workspace.</p>
+{% if error %}<div class="notice danger" role="alert" id="login-error" tabindex="-1">{{ error }}</div>{% endif %}
+<form method="POST" action="{{ url_for('admin_login' if login_role=='admin' else 'staff_login') }}" class="auth-form"{% if error %} aria-describedby="login-error"{% endif %}>
+  {{ csrf() }}
+  <div><label for="email">Email address</label><input type="email" id="email" name="email" autocomplete="username" placeholder="you@company.com" value="{{ request.form.get('email','') }}" maxlength="100" required></div>
+  <div><label for="password">Password</label><div class="password-wrap"><input type="password" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required><button type="button" class="icon-button" data-password-toggle="password" aria-label="Show password">Show</button></div></div>
+  <button type="submit" class="button button-primary">Sign in to workspace {{ icon('arrow',17) }}</button>
+</form>
+<p class="auth-footnote">Need access or a password reset? Contact your administrator.</p>

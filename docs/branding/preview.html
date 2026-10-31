@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>InventraIQ — Inventory Aperture review</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f7f7f3; color: #192d28; font: 16px/1.5 "Segoe UI", Arial, sans-serif; }
+      main { max-width: 1040px; padding: 48px 24px; margin: auto; }
+      h1 { font-size: 32px; letter-spacing: -1px; margin: 8px 0; }
+      h2 { font-size: 18px; margin: 0 0 24px; }
+      p { max-width: 65ch; }
+      .eyebrow { color: #52645d; font-size: 12px; font-weight: 700; letter-spacing: 1.4px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+      section { padding: 32px; border: 1px solid #deded5; border-radius: 10px; background: white; }
+      .dark { background: #192d28; color: white; border-color: #192d28; }
+      .brand-row { display: flex; align-items: center; flex-wrap: wrap; gap: 32px; min-height: 100px; }
+      figure { margin: 0; }
+      figcaption { margin-top: 12px; font-size: 13px; }
+      img { display: block; max-width: 100%; }
+      .sizes { display: flex; align-items: center; gap: 24px; min-height: 100px; }
+      .wide { grid-column: 1 / -1; }
+      .note { color: #52645d; font-size: 14px; }
+      #raster-sample { position: fixed; left: 0; top: 0; visibility: hidden; }
+      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } section { padding: 24px; } }
+      @media print { body { background: white; } section { break-inside: avoid; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">INVENTRAIQ / CONCEPT 1 / ORIGINAL VECTOR CONSTRUCTION</p>
+      <h1>Inventory Aperture</h1>
+      <p>Three offset shelf planes frame an open letter I. A single edge notch marks a measured decision. The rhythm suggests coordination; it places no limit on the number of branches.</p>
+      <div class="grid">
+        <section>
+          <h2>Continuity and evolution</h2>
+          <div class="brand-row">
+            <figure><img src="previous-mark.svg" width="80" height="80" alt="Previous InventraIQ layers mark"><figcaption>Existing layers</figcaption></figure>
+            <figure><img src="../../static/images/inventraiq.svg" width="80" height="80" alt="Inventory Aperture"><figcaption>Approved concept 1</figcaption></figure>
+          </div>
+        </section>
+        <section>
+          <h2>Primary horizontal lockup</h2>
+          <div class="brand-row"><img src="../../static/images/inventraiq-logo.svg" width="336" height="64" alt="InventraIQ"></div>
+          <p class="note">Emerald symbol, ink wordmark. System font; no downloaded type.</p>
+        </section>
+        <section>
+          <h2>Monochrome / light surface</h2>
+          <div class="brand-row"><img src="../../static/images/inventraiq-logo-dark.svg" width="294" height="56" alt="InventraIQ, monochrome dark"></div>
+        </section>
+        <section class="dark">
+          <h2>Monochrome / dark surface</h2>
+          <div class="brand-row"><img src="../../static/images/inventraiq-logo-light.svg" width="294" height="56" alt="InventraIQ, monochrome light"></div>
+        </section>
+        <section>
+          <h2>Compact mark at native CSS sizes</h2>
+          <div class="sizes">
+            <figure><img src="../../static/images/inventraiq.svg" width="16" height="16" alt="Symbol at 16 pixels"><figcaption>16px</figcaption></figure>
+            <figure><img src="../../static/images/inventraiq.svg" width="24" height="24" alt="Symbol at 24 pixels"><figcaption>24px</figcaption></figure>
+            <figure><img src="../../static/images/inventraiq.svg" width="32" height="32" alt="Symbol at 32 pixels"><figcaption>32px</figcaption></figure>
+            <figure><img src="../../static/images/inventraiq.svg" width="64" height="64" alt="Symbol at 64 pixels"><figcaption>64px</figcaption></figure>
+          </div>
+        </section>
+        <section class="dark">
+          <h2>Reversed compact mark</h2>
+          <div class="sizes">
+            <img src="../../static/images/inventraiq-symbol-light.svg" width="16" height="16" alt="Light symbol at 16 pixels">
+            <img src="../../static/images/inventraiq-symbol-light.svg" width="24" height="24" alt="Light symbol at 24 pixels">
+            <img src="../../static/images/inventraiq-symbol-light.svg" width="32" height="32" alt="Light symbol at 32 pixels">
+            <img src="../../static/images/inventraiq-symbol-light.svg" width="64" height="64" alt="Light symbol at 64 pixels">
+          </div>
+        </section>
+        <section class="wide">
+          <h2>Browser favicon / independent of tab theme</h2>
+          <div class="sizes">
+            <img src="../../static/images/inventraiq-favicon.svg" width="16" height="16" alt="Favicon at 16 pixels">
+            <img src="../../static/images/inventraiq-favicon.svg" width="24" height="24" alt="Favicon at 24 pixels">
+            <img src="../../static/images/inventraiq-favicon.svg" width="32" height="32" alt="Favicon at 32 pixels">
+          </div>
+          <p class="note">A quiet white backing preserves the emerald silhouette on light or dark browser chrome. One canonical geometry source generates every current variant. No animation, gradients or stock icons.</p>
+        </section>
+      </div>
+      <p class="note">Original InventraIQ artwork. Earlier project attribution is retained. Limited visual similarity review does not establish trademark clearance.</p>
+    </main>
+    <img id="raster-sample" src="../../static/images/inventraiq.svg" width="32" height="32" alt="" aria-hidden="true">
+  </body>
+</html>

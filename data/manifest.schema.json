@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:inventraiq:m5-manifest:v1",
+  "title": "T13 blocked selection contract",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "inventraiq-m5-manifest-v1"
+    },
+    "profile": {
+      "enum": [
+        "small",
+        "medium",
+        "large"
+      ]
+    },
+    "status": {
+      "enum": [
+        "blocked_template",
+        "selection_frozen"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "const": "kaggle/m5-forecasting-accuracy"
+        },
+        "url": {
+          "const": "https://www.kaggle.com/competitions/m5-forecasting-accuracy"
+        },
+        "revision": {
+          "enum": [
+            "accuracy-validation-d1-d1913",
+            "synthetic-metadata-v1"
+          ]
+        },
+        "byte_identity": {
+          "enum": [
+            "unverified",
+            "not_applicable"
+          ]
+        },
+        "provenance": {
+          "enum": [
+            "m5_historical_observation",
+            "synthetic_fixture"
+          ]
+        }
+      },
+      "required": [
+        "identifier",
+        "url",
+        "revision",
+        "byte_identity",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "rights": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "const": "BLOCKED"
+        },
+        "checked_on": {
+          "const": "2026-10-22"
+        },
+        "terms_reference": {
+          "const": "data/RIGHTS_REVIEW.md"
+        },
+        "accepted_terms_reference": {
+          "const": null
+        },
+        "allowed_real_uses": {
+          "const": []
+        }
+      },
+      "required": [
+        "decision",
+        "checked_on",
+        "terms_reference",
+        "accepted_terms_reference",
+        "allowed_real_uses"
+      ],
+      "additionalProperties": false
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "enum": [
+              "calendar.csv",
+              "sell_prices.csv",
+              "sales_train_validation.csv"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "[a-f0-9]{64}"
+          },
+          "size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "types": {
+            "enum": [
+              "calendar-v1",
+              "weekly-price-v1",
+              "wide-units-v1"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "sha256",
+          "size_bytes",
+          "columns",
+          "types"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "branches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "store_id": {
+            "enum": [
+              "CA_1",
+              "TX_1",
+              "WI_1"
+            ]
+          },
+          "branch_code": {
+            "enum": [
+              "DEMO-01",
+              "DEMO-02",
+              "DEMO-03"
+            ]
+          }
+        },
+        "required": [
+          "store_id",
+          "branch_code"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true
+    },
+    "selection": {
+      "type": "object",
+      "properties": {
+        "algorithm": {
+          "const": "shared-training-strata-v1"
+        },
+        "seed": {
+          "const": "inventraiq-t13-v1"
+        },
+        "training_end_day": {
+          "const": 1857
+        },
+        "sku_cap": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "store_algorithm": {
+          "const": "first-per-state-v1"
+        }
+      },
+      "required": [
+        "algorithm",
+        "seed",
+        "training_end_day",
+        "sku_cap",
+        "store_algorithm"
+      ],
+      "additionalProperties": false
+    },
+    "selected_item_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "(FOODS|HOBBIES|HOUSEHOLD)_[1-9]_[0-9]{3}"
+      },
+      "uniqueItems": true,
+      "maxItems": 3049
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "first_day": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_day": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "train_end_day": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "validation_first": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "validation_last": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "test_first": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "test_last": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "first_date": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_date": {
+          "type": "string",
+          "minLength": 1
+        },
+        "demo_as_of": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "first_day",
+        "last_day",
+        "train_end_day",
+        "validation_first",
+        "validation_last",
+        "test_first",
+        "test_last",
+        "first_date",
+        "last_date",
+        "demo_as_of"
+      ],
+      "additionalProperties": false
+    },
+    "transform": {
+      "type": "object",
+      "properties": {
+        "date_shift_days": {
+          "const": 0
+        },
+        "observation_kind": {
+          "const": "imported_daily_units"
+        },
+        "pos_sales": {
+          "const": false
+        },
+        "stock_effects": {
+          "const": false
+        },
+        "source_currency": {
+          "const": "USD"
+        },
+        "operational_currency": {
+          "const": "MYR"
+        },
+        "currency_conversion": {
+          "const": false
+        },
+        "source_day_semantics": {
+          "const": "calendar_date_no_timezone_conversion"
+        },
+        "price_semantics": {
+          "const": "weekly_observed_price_not_transaction_revenue"
+        },
+        "missing_price": {
+          "const": "unknown_no_backfill"
+        },
+        "missing_coverage": {
+          "const": "unknown_not_zero"
+        },
+        "source_labels": {
+          "const": "anonymized_codes_not_brand_names"
+        },
+        "expiry": {
+          "const": "unknown_no_inference"
+        },
+        "natural_key": {
+          "const": [
+            "source_revision",
+            "store_id",
+            "item_id",
+            "date",
+            "measure_kind"
+          ]
+        }
+      },
+      "required": [
+        "date_shift_days",
+        "observation_kind",
+        "pos_sales",
+        "stock_effects",
+        "source_currency",
+        "operational_currency",
+        "currency_conversion",
+        "source_day_semantics",
+        "price_semantics",
+        "missing_price",
+        "missing_coverage",
+        "source_labels",
+        "expiry",
+        "natural_key"
+      ],
+      "additionalProperties": false
+    },
+    "metadata_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selection_metadata_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "[a-f0-9]{64}"
+    },
+    "reconciliation_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "importer_revision": {
+      "const": "not_implemented_T14"
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile",
+    "status",
+    "source",
+    "rights",
+    "files",
+    "branches",
+    "selection",
+    "selected_item_ids",
+    "coverage",
+    "transform",
+    "metadata_path",
+    "selection_metadata_sha256",
+    "reconciliation_path",
+    "importer_revision"
+  ],
+  "additionalProperties": false
+}

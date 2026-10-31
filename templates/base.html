@@ -1,0 +1,107 @@
+{% from 'components/ui.html' import icon, brand, csrf %}
+{% set is_admin = current_user.is_authenticated and authz_role in ['hq_admin','hq_analyst'] %}
+{% set role_label = {'hq_admin':'HQ administrator','hq_analyst':'HQ analyst','manager':'Branch manager','clerk':'Clerk'}.get(authz_role,'Workspace member') %}
+{% macro nav(label, endpoint, glyph, active) -%}
+<a href="{{ url_for(endpoint) }}" class="nav-link {{ 'active' if active else '' }}"{% if active %} aria-current="page"{% endif %}>{{ icon(glyph,18) }}<span>{{ label }}</span></a>
+{%- endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Workspace{% endblock %} · InventraIQ</title>
+  <link rel="icon" href="{{ url_for('static',filename='images/inventraiq-favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/inventraiq.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/product.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/planning.css') }}">
+  <script src="{{ url_for('static',filename='js/assistant.js') }}" defer></script>
+  <script src="{{ url_for('static',filename='js/workspace.js') }}" defer></script>
+  <script src="{{ url_for('static',filename='js/command-palette.js') }}" defer></script>
+  <script src="{{ url_for('static',filename='js/form-guidance.js') }}" defer></script>
+</head>
+<body class="product-workspace" data-workspace-role="{{ authz_role|default('member') }}">
+  <a class="skip-link" href="#main-content" data-nav-background>Skip to content</a>
+  <div class="workspace">
+    <button class="nav-backdrop" type="button" aria-label="Close navigation" data-nav-close hidden></button>
+    <aside class="sidebar" id="primary-sidebar" aria-label="Workspace navigation" tabindex="-1">
+      <div class="sidebar-brand-row">
+        <a class="brand" href="{{ url_for('admin_dashboard' if is_admin else 'home') }}">{{ brand() }}</a>
+        <button class="icon-button mobile-nav-close" type="button" data-nav-close aria-label="Close navigation">{{ icon('close') }}</button>
+      </div>
+      <div class="workspace-label">
+        <span class="workspace-symbol" aria-hidden="true">{{ icon('branches' if is_admin else 'box',17) }}</span>
+        <div>{{ 'Headquarters' if is_admin else 'Branch operations' }}</div>
+      </div>
+      <nav aria-label="Main navigation">
+        <p class="nav-label">Workspace</p>
+        {{ nav('Overview','admin_dashboard' if is_admin else 'home','grid',request.endpoint in ['home','admin_dashboard']) }}
+        {{ nav('Attention','admin_alerts' if is_admin else 'expiry_alerts_page','bell',request.endpoint in ['admin_alerts','expiry_alerts_page','expiring_soon_page']) }}
+        <p class="nav-label">Operations</p>
+        {{ nav('Inventory','admin_inventory' if is_admin else 'inventory_page','box',request.endpoint in ['admin_inventory','inventory_page','catalog.stock_page','all_products_page','low_stock_page','reorder_needed_page','add_product','admin_add_product','edit_product','admin_edit_product','archived_products']) }}
+        {{ nav('Sales','sales','sales',request.endpoint in ['sales','sales_native.sales_page','record_sale_page','admin_record_sale']) }}
+        {% if can_adjust_stock %}{{ nav('Receive stock','catalog.receiving_page','plus',request.endpoint=='catalog.receiving_page') }}{% endif %}
+        {% if authz_role in ('hq_admin','hq_analyst','manager') %}
+          {{ nav('Transfers','transfers.page','transfer',request.endpoint=='transfers.page') }}
+          {{ nav('Purchasing','purchasing.page','purchase',request.endpoint=='purchasing.page') }}
+        {% endif %}
+        <p class="nav-label">Intelligence</p>
+        {{ nav('Planning' if is_admin else 'Branch insights','ai_predictions','spark',request.endpoint=='ai_predictions') }}
+        {{ nav('Analytics','analytics','chart',request.endpoint in ['analytics','reports']) }}
+        <p class="nav-label">Organization</p>
+        {{ nav('Shared catalog','catalog.catalog_page','catalog',request.endpoint=='catalog.catalog_page') }}
+        {% if can_manage_catalog %}
+          {{ nav('Settings','admin_settings','settings',request.endpoint=='admin_settings') }}
+        {% else %}
+          {{ nav('My workspace','staff','user',request.endpoint=='staff') }}
+        {% endif %}
+      </nav>
+      <div class="sidebar-bottom">
+        <form method="POST" action="{{ url_for('logout') }}">{{ csrf() }}<button type="submit" class="nav-link logout">{{ icon('logout',18) }} Sign out</button></form>
+      </div>
+    </aside>
+    <div class="workspace-body" data-nav-background>
+      <header class="topbar">
+        <div class="topbar-start">
+          <button type="button" class="icon-button mobile-menu" data-nav-toggle aria-label="Open navigation" aria-controls="primary-sidebar" aria-expanded="false">{{ icon('menu') }}</button>
+          <div class="breadcrumb">{{ icon('branches' if is_admin else 'box',16) }}<span>{{ 'Headquarters' if is_admin else 'Branch workspace' }}</span><span aria-hidden="true">/</span><strong>{{ 'Read only' if authz_role=='hq_analyst' else 'Operations' }}</strong></div>
+        </div>
+        <div class="topbar-actions">
+          <button class="workspace-search" type="button" data-command-open hidden aria-haspopup="dialog" aria-controls="command-palette" aria-label="Go to a workspace">{{ icon('search',17) }}<span>Go to a workspace…</span><kbd data-command-shortcut>Ctrl K</kbd></button>
+          {% if shell_scopes is defined %}
+          <form method="POST" action="{{ url_for('scope_page') }}" class="branch-switch" aria-label="Switch branch">
+            {{ csrf() }}<input type="hidden" name="next" value="{{ shell_return_to|default(request.path) }}">
+            <label for="shell-branch" class="sr-only">Scope</label>
+            <select id="shell-branch" name="branch_id" required>
+              {% if shell_scopes.consolidated_allowed %}<option value="all"{% if shell_selected is none %} selected{% endif %}>Company-wide (HQ)</option>{% endif %}
+              {% for branch in shell_scopes.branches %}<option value="{{ branch.branch_id }}"{% if shell_selected==branch.branch_id %} selected{% endif %}>{{ branch.display_name|branch_name }}</option>{% endfor %}
+            </select>
+            <button class="button button-quiet" type="submit">Switch</button>
+          </form>
+          {% else %}<a class="scope-shortcut" href="{{ url_for('scope_page') }}">{{ icon('branches',16) }}{{ branch_scope_label|default('Branch scope') }}</a>{% endif %}
+          <button class="button assistant-trigger" type="button" data-assistant-open aria-label="Ask assistant" aria-haspopup="dialog" aria-controls="assistant-panel">{{ icon('spark',17) }}<span>Ask assistant</span></button>
+          <div class="profile-summary"><div><strong>{{ profile_name|default('Workspace member') }}</strong><small>{{ role_label }}</small></div><span class="avatar" aria-label="Profile initials">{{ profile_initials|default('IQ') }}</span></div>
+        </div>
+      </header>
+      <main class="page-content" id="main-content" tabindex="-1">
+        {% if synthetic_demo is defined %}
+        <div class="demo-provenance" role="status" id="synthetic-demo-notice">{{ icon('info',14) }}<span><strong>Demo data</strong> · Figures are simulated.</span></div>
+        {% endif %}
+        <div id="global-message" class="notice danger" role="alert" aria-atomic="true" tabindex="-1" hidden></div>
+        {% with messages=get_flashed_messages(with_categories=true) %}{% for category,message in messages %}<div class="notice {{ 'danger' if category=='error' else 'success' }}" role="{{ 'alert' if category=='error' else 'status' }}">{{ message }}</div>{% endfor %}{% endwith %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% include 'components/assistant.html' %}
+  <dialog id="command-palette" class="command-dialog" aria-labelledby="command-title">
+    <div class="command-heading"><h2 id="command-title">Go to workspace</h2><button type="button" class="icon-button" data-command-close aria-label="Close workspace search">{{ icon('close',18) }}</button></div>
+    <div class="command-input">{{ icon('search',20) }}<label class="sr-only" for="command-query">Find a workspace</label><input id="command-query" type="search" placeholder="Search pages and workflows…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="command-results"></div>
+    <div id="command-results" class="command-results" role="listbox" aria-label="Workspace search results"></div>
+    <p class="command-empty" data-command-empty role="status" hidden>No matching workspaces. Try inventory, sales, or settings.</p>
+    <div class="command-footer"><span><kbd>↑</kbd><kbd>↓</kbd> to navigate <kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </dialog>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, csrf, icon %}
+{% block title %}Branch scope{% endblock %}
+{% block content %}
+{{ page_header('Choose a branch to receive stock' if receiving_selection else 'Choose your working branch','Stock must be received at one branch. Select the delivery location to continue.' if receiving_selection else 'Choose an assigned branch, or review all branches if your account allows it.','WORKSPACE CONTEXT') }}
+{% if receiving_selection %}<p class="workflow-note">Stock must be received at one branch. Choose the delivery location to continue; the company-wide view cannot record a receipt.</p>{% endif %}
+<div class="scope-workspace">
+  <section class="scope-selector">
+    <div class="section-heading"><div><h2>Where are you working?</h2></div>{{ icon('branches',24) }}</div>
+    <form class="form-stack" method="POST" action="{{ url_for('scope_page') }}">
+      {{ csrf() }}
+      {% if receiving_selection %}<input type="hidden" name="next" value="{{ url_for('catalog.receiving_page') }}">{% endif %}
+      <div><label for="branch-scope">{{ 'Receiving branch' if receiving_selection else 'Working branch' }}</label><select id="branch-scope" name="branch_id" required aria-describedby="scope-guidance">
+      {% if receiving_selection %}<option value="" disabled selected>Select a branch</option>{% endif %}
+      {% if scopes.consolidated_allowed and not receiving_selection %}<option value="all"{% if session.get('active_branch_id') is none %} selected{% endif %}>All branches — view only</option>{% endif %}
+      {% for branch in scopes.branches %}<option value="{{ branch.branch_id }}"{% if session.get('active_branch_id') == branch.branch_id %} selected{% endif %}>{{ branch.code }} — {{ branch.display_name }}</option>{% endfor %}
+      </select></div>
+      <p class="field-hint" id="scope-guidance">{% if scopes.consolidated_allowed %}Select a branch to record sales or stock changes.{% else %}Choose a branch.{% endif %}</p>
+      <button class="button button-primary" type="submit"{% if not scopes.branches and not scopes.consolidated_allowed %} disabled{% endif %}>{{ 'Continue to receiving' if receiving_selection else 'Use this branch' }} {{ icon('arrow',16) }}</button>
+    </form>
+    {% if not scopes.branches %}<p class="notice">No active branch assignments are available. Contact your headquarters administrator.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

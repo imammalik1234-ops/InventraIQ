@@ -1,0 +1,93 @@
+{
+  "evidence_version": "inventraiq-m5-rights-evidence-v1",
+  "checked_on": "2026-10-22",
+  "decision": "BLOCKED",
+  "scope": "Curated public metadata, not a raw-response snapshot or dataset verification",
+  "records": [
+    {
+      "record_id": "12636070",
+      "record_url": "https://zenodo.org/records/12636070",
+      "metadata_url": "https://zenodo.org/api/records/12636070",
+      "doi": "10.5281/zenodo.12636070",
+      "display_version": "v1",
+      "publication_date": "2024-07-03",
+      "created": "2024-07-03T14:40:46.526109+00:00",
+      "updated": "2024-07-03T14:40:46.856063+00:00",
+      "recorded_creators": ["Kaggle"],
+      "attributed_source_url": "https://www.kaggle.com/competitions/m5-forecasting-accuracy/data",
+      "access_right": "open",
+      "license_field_present": true,
+      "recorded_license_id": "cc-by-4.0",
+      "uploader_authority": "UNVERIFIED",
+      "files": [
+        {
+          "name": "m5-forecasting-accuracy.zip",
+          "published_size_bytes": 48009163,
+          "published_checksum": {"algorithm": "md5", "value": "86f57416a314197f40a17cc6fc60cbb4"},
+          "locally_verified_md5": null,
+          "locally_verified_sha256": null,
+          "locally_verified_size_bytes": null,
+          "archive_members_verified": false
+        }
+      ]
+    },
+    {
+      "record_id": "10203108",
+      "record_url": "https://zenodo.org/records/10203108",
+      "metadata_url": "https://zenodo.org/api/records/10203108",
+      "doi": "10.5281/zenodo.10203108",
+      "display_version": "v1",
+      "publication_date": "2020",
+      "created": "2023-11-24T09:20:11.953877+00:00",
+      "updated": "2023-11-24T09:20:12.417986+00:00",
+      "recorded_creators": ["University of Nicosia"],
+      "attributed_source_url": "https://www.kaggle.com/competitions/m5-forecasting-accuracy",
+      "access_right": "open",
+      "license_field_present": false,
+      "recorded_license_id": null,
+      "uploader_authority": "UNVERIFIED",
+      "files": [
+        {
+          "name": "calendar.csv",
+          "published_size_bytes": 103469,
+          "published_checksum": {"algorithm": "md5", "value": "3ffeab2991b0c8e861d008b39ea4c95c"},
+          "locally_verified_md5": null,
+          "locally_verified_sha256": null,
+          "locally_verified_size_bytes": null
+        },
+        {
+          "name": "sales_train_evaluation.csv",
+          "published_size_bytes": 121736518,
+          "published_checksum": {"algorithm": "md5", "value": "b806dfc9f30a745102b708c09951f6aa"},
+          "locally_verified_md5": null,
+          "locally_verified_sha256": null,
+          "locally_verified_size_bytes": null
+        },
+        {
+          "name": "sales_train_validation.csv",
+          "published_size_bytes": 120007726,
+          "published_checksum": {"algorithm": "md5", "value": "26a366a25beb57b0a8f4c7b148758f94"},
+          "locally_verified_md5": null,
+          "locally_verified_sha256": null,
+          "locally_verified_size_bytes": null
+        },
+        {
+          "name": "sample_submission.csv",
+          "published_size_bytes": 5228786,
+          "published_checksum": {"algorithm": "md5", "value": "c281a69d7c011274899d92020a66e25b"},
+          "locally_verified_md5": null,
+          "locally_verified_sha256": null,
+          "locally_verified_size_bytes": null
+        },
+        {
+          "name": "sell_prices.csv",
+          "published_size_bytes": 203395785,
+          "published_checksum": {"algorithm": "md5", "value": "08c591caa99e55daf3e0ccac913f7c85"},
+          "locally_verified_md5": null,
+          "locally_verified_sha256": null,
+          "locally_verified_size_bytes": null
+        }
+      ]
+    }
+  ]
+}

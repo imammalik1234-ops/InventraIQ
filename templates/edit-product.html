@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block title %}Edit product{% endblock %}{% block content %}{% set editing=true %}{% set errors_list=errors %}{% include 'pages/catalog_form.html' %}{% endblock %}{% block scripts %}<script>
+const catalog = {{ catalog|tojson }};
+const selectedValues = {{ form_data|tojson }};
+</script><script src="{{ url_for('static',filename='js/product-form.js') }}"></script>{% endblock %}

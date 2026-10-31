@@ -1,0 +1,16 @@
+# These migration bytes are pinned by phase1_singleton_compatibility.json.
+# Preserve their verified LF or CRLF bytes through add/checkout on every platform.
+# Keep Git's default whitespace checks, treating CRLF as a valid line terminator.
+/migrations/phase1_singleton_compatibility.json -text
+/migrations/t06_v001_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t06_v001_expand_sqlite.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t06_v002_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t14_v001_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t14_v001_expand_sqlite.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t14_v002_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t15_v001_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t15_v002_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t16_v001_indexes_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t20_v001_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t20_v002_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/migrations/t27_v001_expand_mysql.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

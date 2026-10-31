@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, csrf %}
+{% block title %}Lot inventory{% endblock %}
+{% block content %}
+{% call page_header('Lot inventory','Every lot, its available balance and the evidence behind its condition.','INVENTORY / LOTS') %}
+  {% if can_adjust_stock and g.authz_scope and not g.authz_scope.consolidated %}<a class="button button-primary" href="{{ url_for('catalog.receiving_page',branch_id=request.args.get('branch_id')) }}">Receive stock</a>{% endif %}
+  <a class="button button-secondary" href="{{ url_for('catalog.catalog_page',branch_id=request.args.get('branch_id')) }}">Shared catalog</a>
+{% endcall %}
+<div class="scope-banner"><strong>{{ holdings|length }} lots in this view</strong><a href="{{ url_for('sales_native.sales_page',branch_id=request.args.get('branch_id')) }}">Sales and returns &rarr;</a></div>
+{% if result %}<p class="notice success" role="status">Committed operation #{{ result.operation_id }} ({{ result.kind or 'receipt' }}). {% for line in result.allocations or [] %}Lot #{{ line.lot_id }}: physical delta {{ line.quantity_delta }}, balance {{ line.on_hand }}.{% endfor %}</p>{% endif %}
+<section class="work-section" aria-labelledby="holdings-heading">
+  <div class="section-heading"><div><h2 id="holdings-heading">Branch lot balances</h2></div></div>
+  <div class="table-scroll" role="region" tabindex="0" aria-labelledby="holdings-caption"><table>
+    <caption id="holdings-caption">Stock in units · Prices in MYR</caption>
+    <thead><tr><th scope="col">SKU / lot</th><th scope="col">Branch</th><th scope="col">Condition</th><th scope="col" class="numeric">Physical</th><th scope="col" class="numeric">Eligible</th><th scope="col">Expiry</th><th scope="col">Review</th></tr></thead>
+    <tbody>{% for lot in holdings %}<tr>
+      <th scope="row">{{ lot.sku_code }}<span class="cell-secondary">{{ lot.lot_code }}</span></th>
+      <td>{{ lot.branch_code|branch_name }}</td><td><span class="status-label status-{{ lot.status }}">{{ lot.status|replace('_',' ')|capitalize }}</span></td>
+      <td class="numeric">{{ lot.on_hand }}</td><td class="numeric emphasis">{{ lot.eligible_quantity }}</td>
+      <td>{{ lot.expiry_date or 'Unknown / undated' }}<span class="cell-secondary">{% if lot.days_remaining is not none %}{{ lot.days_remaining }} calendar days remaining{% else %}No dated expiry{% endif %}</span></td>
+      <td><details class="lot-evidence"><summary>Inspect <span class="sr-only">{{ lot.lot_code }} at {{ lot.branch_code|branch_name }}</span></summary>
+        <h3>{{ lot.sku_name }}</h3>
+        <dl class="summary-ledger"><div><dt>Reserved</dt><dd>{{ lot.reserved }} <small>units</small></dd></div><div><dt>Quarantined</dt><dd>{{ lot.quarantined_quantity }} <small>units</small></dd></div><div><dt>Unusable</dt><dd>{{ lot.unusable_quantity }} <small>units</small></dd></div><div><dt>Effective price</dt><dd><small>MYR</small> {{ lot.effective_price }}</dd></div></dl>
+        <p>Evaluated {{ lot.as_of_utc }} in {{ lot.timezone }}. Label date {{ lot.expiry_date or 'Unknown / undated' }} in {{ lot.expiry_timezone or 'No label zone' }}. Local expiry boundary {{ lot.local_expiry or 'Not established' }}.</p>
+        {% if lot.observed_expiry_label and not lot.expiry_date %}<p>Original observed label awaiting interpretation: {{ lot.observed_expiry_label }}.</p>{% endif %}
+        {% if not lot.policy %}<p>Expiry policy needs headquarters review.</p>{% endif %}
+      {% if can_adjust %}
+        <form method="POST" action="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}" class="form-grid" aria-label="Adjust lot {{ lot.lot_code }}" data-enhance-form>
+          {{ csrf() }}
+          <input type="hidden" name="stock_action" value="adjustment">
+          <input type="hidden" name="sku_id" value="{{ lot.sku_id }}">
+          <input type="hidden" name="lot_id" value="{{ lot.lot_id }}">
+          <input type="hidden" name="expected_revision" value="{{ lot.stock_version }}">
+          <label>
+            Kind
+            <select name="kind">
+              <option value="adjustment">
+                Count adjustment
+              </option>
+              <option value="write_off">
+                Write-off
+              </option>
+            </select>
+          </label>
+          <label>
+            Direction
+            <select name="direction">
+              <option value="decrease">
+                Decrease
+              </option>
+              <option value="increase">
+                Increase existing eligible lot
+              </option>
+            </select>
+          </label>
+          <label>
+            Quantity
+            <input name="quantity" type="number" min="1" max="2147483647" required>
+          </label>
+          <input type="hidden" name="request_key" value="{{ operation_key() }}" maxlength="120" required>
+          <label>
+            Business reference
+            <input name="business_reference" maxlength="100" required>
+          </label>
+          <label>
+            Required reason
+            <input name="reason" maxlength="255" required>
+          </label>
+          <button class="button button-secondary">
+            Record adjustment
+          </button>
+        </form>
+      {% endif %}
+
+      </details></td></tr>{% else %}<tr><td colspan="7"><strong>No lot holdings in this scope</strong><span class="cell-secondary">Select a branch or receive stock to add a lot.</span></td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+<p class="workflow-note"></p>
+  {% if can_sell and sku_choices %}
+    <details class="workflow-tools"><summary>Record a quantity-only sale</summary><section class="work-section">
+      <h2>
+        Record quantity sale
+      </h2>
+      <form method="POST" action="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}" class="form-grid" aria-label="Record FEFO quantity sale" data-enhance-form>
+        {{ csrf() }}
+        <input type="hidden" name="stock_action" value="sale">
+        <label>
+          SKU
+          <select name="sku_id" required>
+            {% for sku in sku_choices %}
+              <option value="{{ sku.sku_id }}" {% if not sku.sku_active %}disabled{% endif %}>
+                {{ sku.sku_code }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Quantity
+          <input name="quantity" type="number" min="1" max="2147483647" required>
+        </label>
+        <input type="hidden" name="request_key" value="{{ operation_key() }}" maxlength="120" required>
+        <label>
+          Business reference
+          <input name="business_reference" maxlength="100" required>
+        </label>
+        <label>
+          Reason
+          <input name="reason" maxlength="255" required>
+        </label>
+        <button class="button button-primary">
+          Record quantity sale
+        </button>
+      </form>
+    </section></details>
+  {% endif %}
+
+{% endblock %}

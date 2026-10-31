@@ -1,0 +1,64 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+instance/
+*.db
+*.db-*
+*.sqlite*
+*.log
+*.pem
+*.key
+# Legacy datasets: provenance/redistribution rights not yet verified; retain locally.
+/products.csv
+/sales_data.csv
+
+# Never publish local data, credentials or generated outputs.
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.p12
+*.pfx
+*.dump
+*.bak
+*.csv
+*.parquet
+*.xlsx
+*.ipynb_checkpoints/
+seed-users.sql
+database schema.sql
+screenshots/
+
+# T13: keep all source bytes, licensed derivatives, evidence and credentials local.
+/data/private/
+/data/raw/
+/data/processed/
+/data/derived/
+/data/artifacts/
+/data/downloads/
+/data/local-manifests/
+kaggle.json
+kaggle-token*
+*.zip
+*.7z
+*.tar
+*.gz
+*.feather
+*.arrow
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.onnx
+*.duckdb
+# T14 generated target capabilities, fixtures, databases and outputs (any parent).
+t14-demo-*/
+
+# Phase 5 checkpoint: generated benchmark captures stay local; retain code/reports.
+/data/t16_*.json
+/data/t17_*.json

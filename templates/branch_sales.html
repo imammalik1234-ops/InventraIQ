@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, csrf %}
+
+{% block title %}Branch sales and returns{% endblock %}
+{% block content %}
+  {% call page_header('Sales and returns', 'Record a sale, inspect the receipt or return goods against their original lot allocation.', 'OPERATIONS / SALES') %}
+    <a class="button button-secondary" href="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}">Lot inventory</a>
+  {% endcall %}
+  <p class="workflow-note">A product code (SKU) identifies one sellable variant. Eligible stock is taken from the batches that expire first.</p>
+  <nav class="workbench-toolbar" aria-label="Sales workspace sections">{% if can_sell %}<a href="#new-sale-heading">New sale</a>{% endif %}<a href="#priced-sales-heading">Recent sales</a>{% if detail %}<a href="#sale-heading">Selected receipt #{{ detail.sale_id }}</a>{% endif %}<span>Transaction currency <strong>MYR</strong></span></nav>
+  <p id="sales-guidance" class="workflow-note">
+    Prices are in MYR; tax and discounts are not included.
+  </p>
+
+  {% if can_sell %}
+    <form method="GET" class="workbench-toolbar" aria-label="Find sale SKU">
+      <label>
+        SKU search
+        <input name="choice_search" maxlength="80" value="{{ choice_page.search }}">
+      </label>
+      {% if request.args.get('branch_id') %}
+        <input type="hidden" name="branch_id" value="{{ request.args.get('branch_id') }}">
+      {% endif %}
+      <button class="button button-secondary" type="submit">Find SKU</button>
+    </form>
+    <nav class="action-group" aria-label="Sale SKU choices pagination">
+      <p>Up to 100 SKU choices, page {{ choice_page.page }}.</p>
+      {% if choice_page.page > 1 %}
+        <a href="{{ url_for(request.endpoint, branch_id=request.args.get('branch_id'), choice_search=choice_page.search, choice_page=choice_page.page-1) }}">Previous SKU choices</a>
+      {% endif %}
+      {% if choice_page.has_next %}
+        <a href="{{ url_for(request.endpoint, branch_id=request.args.get('branch_id'), choice_search=choice_page.search, choice_page=choice_page.page+1) }}">Next SKU choices</a>
+      {% endif %}
+    </nav>
+    <div class="workspace-grid"><div class="workspace-main"><section class="work-section" aria-labelledby="new-sale-heading">
+      <h2 id="new-sale-heading">New priced sale</h2>
+      <p id="sale-lines-guidance" class="field-hint">Leave unused item lines blank.</p>
+      <form method="POST" action="{{ url_for('sales_native.create_form', branch_id=request.args.get('branch_id')) }}"
+            class="form-grid" aria-label="Create priced sale" aria-describedby="sales-guidance sale-lines-guidance" data-enhance-form>
+        {{ csrf() }}
+        {% for n in range(3) %}
+          {% if n==1 %}<details class="full additional-lines"><summary>Add more sale lines (optional)</summary>{% endif %}
+          <fieldset class="sale-line"><legend>Sale line {{ n+1 }}</legend>
+          <label>
+            SKU {{ n+1 }}
+            <select name="sku_id">
+              <option value="">Choose SKU</option>
+              {% for sku in choices %}
+                <option value="{{ sku.sku_id }}" {% if not sku.sku_active %}disabled{% endif %}>{{ sku.sku_code }} - MYR {{ sku.effective_price }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Quantity {{ n+1 }}
+            <input name="quantity" type="number" min="1" max="2147483647">
+          </label>
+          </fieldset>
+          {% if n==2 %}</details>{% endif %}
+        {% endfor %}
+        <input type="hidden" name="request_key" value="{{ request_key() }}" maxlength="120" required>
+        <label>
+          Business reference
+          <input name="business_reference" maxlength="100" required>
+        </label>
+        <label>
+          Reason
+          <input name="reason" maxlength="255" required>
+        </label>
+        <div class="form-actions">
+          <button class="button button-primary" type="submit">Complete priced sale</button>
+        </div>
+      </form>
+    </section></div><aside class="workspace-aside work-section"><h2>Correct stock. Recorded price.</h2><ol class="record-list"><li class="record-row">Choose an approved SKU and whole-unit quantity.</li><li class="record-row">Eligible lots are allocated by earliest expiry.</li><li class="record-row">The sale retains its transaction-time price and original lot evidence.</li></ol><p class="workflow-note">Returns are recorded against the original receipt. A financial refund does not restock goods.</p></aside></div>
+  {% endif %}
+
+  {% if detail %}
+    <section class="work-section" aria-labelledby="sale-heading">
+      <h2 id="sale-heading">Sale #{{ detail.sale_id }}</h2>
+      <dl class="summary-ledger"><div><dt>Original total</dt><dd><small>MYR</small> {{ detail.total }}</dd></div><div><dt>Refunded</dt><dd><small>MYR</small> {{ detail.refunded_total }}</dd></div><div><dt>Net</dt><dd><small>MYR</small> {{ detail.net_total }}</dd></div></dl>
+      <p class="scope-banner">Branch {{ detail.branch_id }} &middot; {{ detail.business_date }} &middot; Operation #{{ detail.operation_id }}</p>
+      {% for line in detail.lines %}
+        <h3>{{ line.sku_snapshot.code }} - {{ line.quantity }} x MYR {{ line.unit_price }} = MYR {{ line.total }}</h3>
+        {% for allocation in line.allocations %}
+          <p>Original lot #{{ allocation.lot_id }}, allocation #{{ allocation.allocation_id }}: {{ allocation.refundable_quantity }} refundable units.</p>
+          {% if can_refund and allocation.refundable_quantity %}
+            <details class="workflow-action"><summary>Return or refund allocation {{ allocation.allocation_id }}</summary>
+            <form method="POST" action="{{ url_for('sales_native.refund_form', branch_id=request.args.get('branch_id'), sale_id=detail.sale_id) }}"
+                  class="form-grid" aria-label="Refund allocation {{ allocation.allocation_id }}" aria-describedby="refund-guidance" data-enhance-form>
+              {{ csrf() }}
+              <input type="hidden" name="mode" value="partial">
+              <input type="hidden" name="allocation_id" value="{{ allocation.allocation_id }}">
+              <label>
+                Refund quantity
+                <input name="quantity" type="number" min="1" max="{{ allocation.refundable_quantity }}" required>
+              </label>
+              <label>
+                Return disposition
+                <select name="disposition">
+                  <option value="no_restock">Financial refund only, no inventory return</option>
+                  <option value="quarantine">Physical return to quarantine</option>
+                  <option value="saleable">Inspected saleable return</option>
+                </select>
+              </label>
+              <label class="full">
+                <input type="checkbox" name="saleable_verified" value="true">
+                I inspected these returned goods and verified they are saleable
+              </label>
+              <label>
+                Inspection evidence
+                <input name="inspection_evidence" maxlength="255">
+              </label>
+              <input type="hidden" name="request_key" value="{{ request_key() }}" maxlength="120" required>
+              <label>
+                Business reference
+                <input name="business_reference" maxlength="100" required>
+              </label>
+              <label>
+                Required refund reason
+                <input name="reason" maxlength="255" required>
+              </label>
+              <div class="form-actions">
+                <button class="button button-secondary" type="submit">Refund allocation {{ allocation.allocation_id }}</button>
+              </div>
+            </form></details>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      <p id="refund-guidance" class="notice">
+        Inspection cannot override expiry or unavailable stock. A physically returned lot failing saleable checks enters quarantine.
+        A financial refund alone never increases stock. Saleable restock requires explicit verification and inspection evidence.
+      </p>
+      {% if can_refund %}
+        <form method="POST" action="{{ url_for('sales_native.refund_form', branch_id=request.args.get('branch_id'), sale_id=detail.sale_id) }}"
+              class="form-grid" aria-label="Reverse remaining sale" aria-describedby="refund-guidance" data-enhance-form>
+          {{ csrf() }}
+          <input type="hidden" name="mode" value="full">
+          <input type="hidden" name="refund_action" value="reversal">
+          <input type="hidden" name="request_key" value="{{ request_key() }}" maxlength="120" required>
+          <label>
+            Business reference
+            <input name="business_reference" maxlength="100" required>
+          </label>
+          <label>
+            Required reversal reason
+            <input name="reason" maxlength="255" required>
+          </label>
+          <div class="form-actions">
+            <button class="button button-secondary" type="submit">Reverse remaining sale without restock</button>
+          </div>
+        </form>
+      {% endif %}
+      {% for refund in detail.refunds %}
+        <p>{{ refund.kind }} #{{ refund.refund_id }}: MYR {{ refund.total }}, operation #{{ refund.operation_id }}. {{ refund.reason }}</p>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <section class="work-section" aria-labelledby="priced-sales-heading">
+    <h2 id="priced-sales-heading">Recent priced sales in this scope</h2>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="priced-sales-caption">
+      <table>
+        <caption id="priced-sales-caption">Transaction-time recorded sale totals in MYR. Open a sale to review its refunds and net amount.</caption>
+        <thead>
+          <tr>
+            <th scope="col">Sale</th>
+            <th scope="col">Branch</th>
+            <th scope="col">Business date</th>
+            <th scope="col" class="numeric">Original total (MYR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in data.sales %}
+            <tr>
+              <th scope="row"><a href="{{ url_for('sales_native.sales_page', branch_id=request.args.get('branch_id'), sale_id=sale.sale_id) }}">Sale #{{ sale.sale_id }}</a></th>
+              <td>{{ sale.branch_id }}</td>
+              <td>{{ sale.business_date }}</td>
+              <td class="numeric">{{ sale.total }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4">No priced sales.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <nav class="action-group" aria-label="Priced sales pagination">
+    <a href="{{ url_for(request.endpoint, branch_id=request.args.get('branch_id')) }}">Restart sales history</a>
+    {% if data.next_cursor %}
+      <a href="{{ url_for(request.endpoint, branch_id=request.args.get('branch_id'), cursor=data.next_cursor, page=data.filters.page+1, page_size=data.filters.page_size, sort=data.filters.sort, start=request.args.get('start'), end=request.args.get('end')) }}">Next priced sales</a>
+    {% endif %}
+  </nav>
+
+  <details class="evidence-disclosure"><summary>Historical quantities with unknown revenue</summary>
+  <section class="work-section" aria-labelledby="unknown-revenue-heading">
+    <h2 id="unknown-revenue-heading" class="sr-only">Historical quantities with unknown revenue</h2>
+    <p>Prices were not recorded for these facts; no revenue is inferred from today's catalog.</p>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="unknown-revenue-caption">
+      <table>
+        <caption id="unknown-revenue-caption">Historical quantity facts remain separate from recorded MYR totals.</caption>
+        <thead>
+          <tr>
+            <th scope="col">Source / record</th>
+            <th scope="col" class="numeric">Units</th>
+            <th scope="col">Monetary value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in data.historical_unknown %}
+            <tr>
+              <th scope="row">{{ sale.source }} #{{ sale.sale_id or sale.operation_id }}</th>
+              <td class="numeric">{{ sale.quantity }}</td>
+              <td>Unknown</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3">No historical quantity records in this scope.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </details>
+{% endblock %}

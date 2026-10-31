@@ -1,0 +1,89 @@
+{% from 'components/ui.html' import icon, page_header, workflow_state %}
+{% set attention_endpoint = 'admin_alerts' if is_admin else 'expiry_alerts_page' %}
+{% set inventory_endpoint = 'admin_inventory' if is_admin else 'inventory_page' %}
+<div class="overview-workspace {{ 'hq-overview' if report.scope.consolidated else 'branch-overview' }}" data-view="dashboard" data-gross="{{ report.total.recorded_gross }}" data-refunds="{{ report.total.recorded_refunds }}" data-net="{{ report.total.recorded_net }}">
+  {% call page_header('Company overview' if report.scope.consolidated else 'Branch overview',
+    'Your inventory, performance, and next priorities. All in perspective.' if report.scope.consolidated else 'A clear picture of your stock and what needs to happen next.',
+    'YOUR WORKSPACE AT A GLANCE') %}
+    <a class="button button-secondary" href="{{ url_for(inventory_endpoint,branch_id=request.args.get('branch_id')) }}">{{ icon('box',16) }} View inventory</a>
+    {% if can_adjust_stock and not report.scope.consolidated %}
+      <a class="button button-primary" href="{{ url_for('catalog.receiving_page',branch_id=request.args.get('branch_id')) }}">{{ icon('plus',16) }} Receive stock</a>
+    {% else %}
+      <a class="button button-primary" href="{{ url_for('operations.csv_export',branch_id=request.args.get('branch_id'),start=report.filters.start,end=report.filters.end) }}">{{ icon('download',16) }} Export summary</a>
+    {% endif %}
+  {% endcall %}
+
+  <div class="overview-toolbar">
+    <div class="overview-scope">{{ icon('branches',16) }}<strong>{{ 'All branches' if report.scope.consolidated else 'Selected branch' }}</strong><span>·</span><span>{% for branch in report.branches %}{{ branch.name|branch_name }}{{ ', ' if not loop.last else '' }}{% else %}No authorized branches{% endfor %}</span></div>
+    <details class="filter-disclosure"{% if request.args.get('start') or request.args.get('end') or request.args.get('search') or request.args.get('status') %} open{% endif %}>
+      <summary>{{ icon('calendar',15) }} {{ report.filters.start }} – {{ report.filters.end }} <span class="sr-only">Filter dates, lots and status</span></summary>
+      <form method="GET" class="report-filters" aria-label="Operational report filters">
+        {% if request.args.get('branch_id') %}<input type="hidden" name="branch_id" value="{{ request.args.get('branch_id') }}">{% endif %}
+        <label>Start date<input name="start" type="date" value="{{ report.filters.start }}" required></label>
+        <label>End date<input name="end" type="date" value="{{ report.filters.end }}" required></label>
+        <label>Lot search<input name="search" type="search" placeholder="SKU or lot code" value="{{ report.filters.search }}" maxlength="80"></label>
+        <label>Lot / alert status<select name="status">{% for state in ['all','healthy','warning','expired','review','not_tracked','low_stock'] %}<option value="{{ state }}"{% if report.filters.status==state %} selected{% endif %}>{{ state|replace('_',' ')|capitalize }}</option>{% endfor %}</select></label>
+        <button class="button button-primary" type="submit">Apply filters</button>
+      </form>
+      <p class="field-hint">Search and status filter the priority queue, not summary totals.</p>
+    </details>
+  </div>
+
+  <div class="overview-metrics" data-operational-summary data-gross="{{ report.total.recorded_gross }}" data-refunds="{{ report.total.recorded_refunds }}" data-net="{{ report.total.recorded_net }}" aria-label="Operational summary">
+    <article class="overview-metric"><div><span class="metric-label">Available stock</span><span class="metric-icon">{{ icon('box',18) }}</span></div><strong class="metric-value">{{ '{:,}'.format(report.total.available) }} <small>units</small></strong><span class="metric-note">{{ '{:,}'.format(report.total.on_hand) }} on hand</span></article>
+    <article class="overview-metric"><div><span class="metric-label">Net sales</span><span class="metric-icon mint">{{ icon('sales',18) }}</span></div><strong class="metric-value"><small>MYR</small> {{ report.total.recorded_net }}</strong><span class="metric-note">After refunds</span></article>
+    <article class="overview-metric"><div><span class="metric-label">Low-stock products</span><span class="metric-icon amber">{{ icon('bell',18) }}</span></div><strong class="metric-value">{{ report.total.low_stock_skus }} <small>to review</small></strong><span class="metric-note">Below reorder level</span></article>
+    <article class="overview-metric"><div><span class="metric-label">Incoming transfers</span><span class="metric-icon violet">{{ icon('transfer',18) }}</span></div><strong class="metric-value">{{ '{:,}'.format(report.total.incoming_transit) }} <small>units</small></strong><span class="metric-note">In transit · not yet available</span></article>
+  </div>
+
+  {% if authz_role in ['hq_admin','hq_analyst'] %}{% include 'components/planning_center.html' %}{% endif %}
+
+    <section class="supply-overview" aria-labelledby="supply-overview-heading"><div class="section-heading"><div><h2 id="supply-overview-heading">Supply & availability</h2><p>Know what can be used now and what is still on the way.</p></div>{% if authz_role in ['hq_admin','hq_analyst','manager'] %}<a href="{{ url_for('transfers.page',branch_id=request.args.get('branch_id')) }}">Track supply {{ icon('arrow',15) }}</a>{% endif %}</div>
+      <dl class="summary-ledger"><div><dt>Available stock</dt><dd>{{ report.total.available }} <small>units</small></dd></div><div><dt>Reserved / quarantined</dt><dd>{{ report.total.reserved }} / {{ report.total.quarantined }}</dd></div><div><dt>Outgoing transfers</dt><dd>{{ report.total.outgoing_transit }} <small>units</small></dd></div>{% if report.total.approved_po_inbound is defined %}<div><dt>Approved orders still due</dt><dd>{{ report.total.approved_po_inbound }} <small>units</small></dd></div>{% endif %}</dl>
+      <p class="field-hint">Updated {{ report.as_of_utc }}. In-transit stock is not yet available.</p>
+    </section>
+
+  <section class="risk-summary" aria-labelledby="attention-heading">
+    <h2 id="attention-heading">{{ icon('bell',16) }} Stock requiring attention</h2>
+    <nav class="risk-filters" aria-label="Review stock risks">
+      {% for state,label,count in [('expired','Expired lots',report.total.expired_lots),('warning','Expiry warnings',report.total.warning_lots),('review','Batches held for review',report.total.review_lots),('low_stock','Low-stock products',report.total.low_stock_skus)] %}
+        <a href="{{ url_for(attention_endpoint,branch_id=request.args.get('branch_id'),status=state,start=report.filters.start,end=report.filters.end) }}"><strong>{{ count }}</strong> {{ label }}</a>
+      {% endfor %}
+    </nav>
+    <a href="{{ url_for(attention_endpoint,branch_id=request.args.get('branch_id'),start=report.filters.start,end=report.filters.end) }}">Review all {{ icon('arrow',14) }}</a>
+  </section>
+
+  {% include 'components/workspace_charts.html' %}
+
+  <div class="overview-lower">
+    <section class="overview-panel" aria-labelledby="priority-queue-heading">
+      <div class="section-heading"><div><h2 id="priority-queue-heading">Priority queue</h2></div><a href="{{ url_for(attention_endpoint,branch_id=request.args.get('branch_id'),start=report.filters.start,end=report.filters.end,status=report.filters.status,search=report.filters.search) }}">View all {{ icon('arrow',14) }}</a></div>
+      <div class="attention-list">
+        {% for row in report.alerts['items'][:4] %}
+        <article class="attention-row"><div><span class="status-label status-{{ row.status }}" data-condition="{{ row.status }}">{{ row.status|replace('_',' ')|capitalize }}</span><h3>{{ row.sku_code }} <span class="text-secondary">/ {{ row.lot_code }}</span></h3><p>{{ row.branch_code|branch_name }} · {{ row.action }}</p></div><a href="{{ url_for('catalog.stock_page',branch_id=row.branch_id,search=row.sku_code if row.status=='low_stock' else row.lot_code) }}">{{ 'Inspect stock' if row.status=='low_stock' else 'Inspect lot' }}<span class="sr-only"> {{ row.lot_code }} at {{ row.branch_code }}</span> {{ icon('arrow',14) }}</a></article>
+        {% else %}<p class="empty-message">No matching stock issues.</p>{% endfor %}
+      </div>
+      {% if not report.inventory.total %}<p class="field-hint">No inventory matches this scope and filter.</p>{% endif %}
+      <p class="field-hint">Showing {{ [4,report.alerts['items']|length]|min }} of {{ report.alerts.total }} issues</p>
+    </section>
+
+    {% if workspace_visuals is defined and authz_role in ['hq_admin','hq_analyst','manager'] %}
+    <section class="overview-panel" aria-labelledby="work-in-motion-heading">
+      <div class="section-heading"><div><h2 id="work-in-motion-heading">Work in motion</h2></div>{{ icon('transfer',18) }}</div>
+      <div class="queue-heading">{{ icon('transfer',17) }}<h3>Open transfers</h3><span class="queue-count">{{ workspace_visuals.queues.transfer_count }}</span></div>
+      <ul class="record-list">{% for transfer in workspace_visuals.queues.transfers %}<li class="record-row"><a href="{{ transfer.url }}">Transfer #{{ transfer.id }}</a><span class="status-label">{{ workflow_state(transfer.state) }}</span><span class="cell-secondary">{{ branch_names.get(transfer.source|string,'Branch ' ~ transfer.source) }} → {{ branch_names.get(transfer.destination|string,'Branch ' ~ transfer.destination) }}</span></li>{% else %}<li class="record-row text-secondary">No open transfers in this scope.</li>{% endfor %}</ul>
+      <div class="queue-heading">{{ icon('purchase',17) }}<h3>Open purchase orders</h3><span class="queue-count">{{ workspace_visuals.queues.purchase_count }}</span></div>
+      <ul class="record-list">{% for purchase in workspace_visuals.queues.purchases %}<li class="record-row"><a href="{{ purchase.url }}">Purchase order #{{ purchase.id }}</a><span class="status-label">{{ workflow_state(purchase.state) }}</span></li>{% else %}<li class="record-row text-secondary">No open purchase orders in this scope.</li>{% endfor %}</ul>
+      </section>
+    {% else %}
+    <section class="overview-panel" aria-labelledby="daily-actions-heading"><div class="section-heading"><h2 id="daily-actions-heading">Your daily workspace</h2></div><ul class="record-list"><li class="record-row"><a href="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}">Inspect branch lots {{ icon('arrow',15) }}</a></li><li class="record-row"><a href="{{ url_for('sales_native.sales_page',branch_id=request.args.get('branch_id')) }}">Sales and returns {{ icon('arrow',15) }}</a></li><li class="record-row"><a href="{{ url_for('staff') }}">My workspace {{ icon('arrow',15) }}</a></li></ul></section>
+    {% endif %}
+  </div>
+
+  {% if report.scope.consolidated %}<div class="overview-branches">{% include 'components/operations_branches.html' %}</div>{% endif %}
+
+  <div class="overview-support">
+
+<details class="evidence-disclosure"><summary>Recent activity</summary><ol class="activity-list">{% for item in report.activity %}<li><strong>{{ item.kind|replace('_',' ')|capitalize }}</strong><span>{{ branch_names.get(item.branch_id|string,'Branch ' ~ item.branch_id) }} · {{ item.reference }} · {{ item.date }}</span></li>{% else %}<li>No activity in this period.</li>{% endfor %}</ol></details>
+    </div>
+</div>

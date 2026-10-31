@@ -1,0 +1,88 @@
+<section class="planning-review work-section" aria-label="Inventory review recommendations" data-decision-set="{{ recommendation_report.decision_set_id }}">
+<div class="section-heading">
+<div>
+<h2>Recommendation review</h2>
+</div>
+<span class="status-label">Advisory only</span>
+</div>
+{% for item in recommendation_report['items'] %}
+<article class="planning-item" data-decision-id="{{ item.decision_id }}">
+<h3>{{ branch_names.get(item.branch_id|string,item.branch_code)|branch_name }} · {{ item.sku_code }}</h3>
+<p class="planning-meta">{{ item.business_date }} · {{ item.timezone }}
+</p>
+<dl class="recommendation-outcomes">
+{% for r in item.recommendations %}
+<div>
+<dt>{{ {'replenishment':'Suggested order','potential_excess':'Possible excess','expiry_risk':'Expired stock'}.get(r.type,r.type|replace('_',' ')|capitalize) }}</dt>
+<dd>
+{% if r.type=='expiry_risk' %}
+<strong>{{ r.observed_expired_units if r.observed_expired_units is not none else 'Unknown' }}{% if r.observed_expired_units is not none %} <small>units</small>{% endif %}</strong>
+{% elif r.suggested_quantity is not none %}
+<strong>{{ r.suggested_quantity }} <small>units</small>
+</strong>
+{% else %}
+<strong class="withheld">Inputs needed</strong>
+{% endif %}
+<span>{{ 'Observed stock' if r.type=='expiry_risk' else 'Demo estimate' if r.suggested_quantity is not none else 'Review the missing inputs below' }}</span>
+</dd>
+</div>
+{% endfor %}
+</dl>
+{% if item.reason_codes %}
+<div class="planning-input-needed"><strong>What needs your input</strong><ul>{% for reason in item.reason_codes|planning_inputs %}<li>{{ reason }}</li>{% endfor %}</ul></div>
+{% endif %}
+<div class="planning-card-actions"><a href="{{ url_for('catalog.stock_page',branch_id=item.branch_id,search=item.sku_code) }}">Verify stock {{ icon('arrow',14) if icon is defined else '→' }}</a>{% if not assistant_gemini_selected %}<button type="button" class="button button-small button-secondary" data-assistant-open data-assistant-prompt="recommendations branch {{ item.branch_id }} SKU {{ item.sku_id }}" aria-haspopup="dialog" aria-controls="assistant-panel">Ask about this review</button>{% endif %}</div>
+{% if item.calculation %}<p class="field-hint">Projected expiry loss: {{ item.recommendations[2].projected_unused_expiry }} units</p>{% endif %}
+<details class="recommendation-details">
+<summary>Inputs, calculation and reasons</summary>
+<p>Business date {{ item.business_date }} · {{ item.timezone }}. Forecast batch {{ item.forecast.run_id or 'unavailable' }}, snapshot {{ item.forecast.snapshot_id or 'unavailable' }} · {{ item.forecast.model_id or 'unavailable' }} · {{ item.forecast.qualification }} · {{ item.forecast.freshness }} · origin {{ item.forecast.as_of or 'unavailable' }}.</p>
+<p>Eligible free stock: {{ item.inputs.available_stock if item.inputs.available_stock is not none else 'unknown' }}; reserved: {{ item.inputs.reserved if item.inputs.reserved is not none else 'unknown' }}; quarantined: {{ item.inputs.quarantined if item.inputs.quarantined is not none else 'unknown' }}.</p>
+<ul>
+{% for lot in item.inputs.lots %}
+<li>Lot {{ lot.lot_id }}, stock revision {{ lot.stock_revision }}: physical {{ lot.on_hand }}, free {{ lot.available }}, reserved {{ lot.reserved }}, quarantined {{ lot.quarantined }}; {{ lot.eligibility }}. Actual expiry {{ lot.expires_at or 'undated' }}, label {{ lot.expiry_date or 'unavailable' }} in {{ lot.expiry_timezone or 'unavailable' }}.</li>
+{% endfor %}
+</ul>
+<p>Expected eligible inbound: {{ item.inputs.expected_eligible_units if item.inputs.expected_eligible_units is not none else 'unknown or restricted' }}. Future inbound is separate from physical stock.</p>
+{% if item.inputs.daily_forecast is not none %}
+<p>Daily forecast units, starting the day after the origin: {{ item.inputs.daily_forecast|join(', ') }}.</p>
+{% endif %}
+{% for inbound in item.inputs.expected_eligible_inbound or [] %}
+<p>Conditional inbound {{ inbound.key }}: {{ inbound.available }} units, usable from {{ inbound.ready_date }}; expiry {{ inbound.expires_at or 'explicitly non-perishable' }}.</p>
+{% endfor %}
+{% if item.policy %}
+<p>Policy {{ item.policy.contract }} revision {{ item.policy.version }} · lead {{ item.policy.lead_days }} days + review {{ item.policy.review_days }} days; safety {{ item.policy.safety_units }}; minimum purchase {{ item.policy.minimum_order_units }}; pack {{ item.policy.pack_units }}; excess buffer {{ item.policy.excess_buffer_units }}. Approval {{ item.policy.approval_reference }}.</p>
+{% elif 'POLICY_VISIBILITY_RESTRICTED' in item.reason_codes %}
+<p>Supplier planning policy is restricted by your current permissions. Quantities remain withheld.</p>
+{% else %}
+<p>Explicit approved lead time, review period, safety, supplier minimum/pack and excess policy configuration is required. No defaults were assumed.</p>
+{% endif %}
+{% if item.calculation %}
+<p>Forecast demand {{ item.calculation.demand }} over {{ item.calculation.horizon_days }} days; raw need {{ item.calculation.raw_need }}; projected ending free stock {{ item.calculation.ending_available }}; projected unmet demand {{ item.calculation.unmet_demand }}. {{ item.calculation.formula }}</p>
+{% if item.calculation.before_lead_time_shortage %}
+<p>Review an earlier shortage: a new order cannot cure unmet demand before its configured lead time.</p>
+{% endif %}
+<div class="table-scroll" tabindex="0" role="region" aria-label="Daily planning calculation for {{ item.branch_code }} {{ item.sku_code }}"><table><caption>Daily model and policy calculation in units. This is advisory evidence, not an executed stock action.</caption><thead><tr><th scope="col">Date</th><th scope="col" class="numeric">Demand</th><th scope="col" class="numeric">Unmet</th><th scope="col" class="numeric">Unused expiry</th><th scope="col" class="numeric">Ending free stock</th></tr></thead><tbody>{% for day in item.calculation.timeline %}<tr><th scope="row">{{ day.date }}</th><td class="numeric">{{ day.demand }}</td><td class="numeric">{{ day.unmet }}</td><td class="numeric">{{ day.projected_expiry }}</td><td class="numeric">{{ day.ending_available }}</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+{% if item.reason_codes %}
+<p>Withheld reasons: {{ item.reason_codes|join(', ') }}.</p>
+{% endif %}
+<ul>
+{% for assumption in item.assumptions %}
+<li>{{ assumption }}</li>
+{% endfor %}
+</ul>
+</details>
+</article>
+{% else %}
+<p>No authorized offered SKU records in this selection.</p>
+{% endfor %}
+{% if recommendation_report.transfer_recommendations['items'] %}
+<h3>Potential transfers for HQ review</h3>
+{% for t in recommendation_report.transfer_recommendations['items'] %}
+<p data-transfer-preview="{{ t.source_branch_id }}:{{ t.destination_branch_id }}:{{ t.sku_id }}">Branch {{ t.source_branch_id }} → {{ t.destination_branch_id }} · SKU {{ t.sku_id }} · {{ t.suggested_quantity }} units. Receiver need {{ t.receiver_need_before }}; donor surplus {{ t.donor_surplus_before }}. Planned-arrival assumption {{ t.planned_arrival_assumption }}; route revision {{ t.route.version }}. {{ t.formula }}. {% if t.receiver_shortage_before_arrival %}Review unmet demand before the planned arrival.{% endif %} No stock is reserved or transferred.</p>
+{% endfor %}
+{% else %}
+<p>No transfer can be suggested from the available demand, surplus-stock and delivery-route evidence. No stock has been moved.</p>
+<details><summary>Transfer review details</summary><p>{{ recommendation_report.transfer_recommendations.reason_codes|join(', ') }}</p></details>
+{% endif %}
+</section>

@@ -1,0 +1,74 @@
+{
+  "schema_version": "inventraiq-synthetic-import-v1",
+  "source_id": "inventraiq-generated-history-v1",
+  "source_revision": "synthetic-r1",
+  "provenance": "synthetic_fixture",
+  "generator": "formula-v1",
+  "configuration": {
+    "profile": "small",
+    "seed": 13,
+    "prices": true,
+    "faults": []
+  },
+  "branches": [
+    {
+      "store_id": "SYN-STORE-01",
+      "branch_code": "DEMO-01"
+    },
+    {
+      "store_id": "SYN-STORE-02",
+      "branch_code": "DEMO-02"
+    },
+    {
+      "store_id": "SYN-STORE-03",
+      "branch_code": "DEMO-03"
+    }
+  ],
+  "skus": [
+    {
+      "item_id": "SYN-ITEM-0000",
+      "sku_code": "SYN-SKU-0000"
+    },
+    {
+      "item_id": "SYN-ITEM-0001",
+      "sku_code": "SYN-SKU-0001"
+    },
+    {
+      "item_id": "SYN-ITEM-0002",
+      "sku_code": "SYN-SKU-0002"
+    },
+    {
+      "item_id": "SYN-ITEM-0003",
+      "sku_code": "SYN-SKU-0003"
+    },
+    {
+      "item_id": "SYN-ITEM-0004",
+      "sku_code": "SYN-SKU-0004"
+    },
+    {
+      "item_id": "SYN-ITEM-0005",
+      "sku_code": "SYN-SKU-0005"
+    }
+  ],
+  "coverage": {
+    "first_date": "2001-01-01",
+    "last_date": "2001-01-14"
+  },
+  "files": {
+    "calendar.jsonl": {
+      "sha256": "89bc7dc33b5da70677468ff84522eca58372ae68fa08a9e7c1eec4bfe2d3e401",
+      "size_bytes": 704,
+      "rows": 14
+    },
+    "prices.jsonl": {
+      "sha256": "1ac7fe4a3ec4259ac4b073767bc293adcb4b1ba364aaa459bdbda77da37548cd",
+      "size_bytes": 3430,
+      "rows": 35
+    },
+    "observations.jsonl": {
+      "sha256": "e99c66b94aea3b904730434b70f2134d450ab33158516a592eafe7d6c8fd6995",
+      "size_bytes": 43688,
+      "rows": 252
+    }
+  }
+}

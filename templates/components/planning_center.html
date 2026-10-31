@@ -1,0 +1,19 @@
+{% from 'components/ui.html' import icon %}
+<section class="planning-center" aria-labelledby="planning-center-heading" data-planning-center>
+  <header class="planning-center-header">
+    <div class="planning-heading"><span class="planning-mark">{{ icon('spark',23) }}</span><div><p class="planning-kicker">HEADQUARTERS PLANNING</p><h2 id="planning-center-heading">Review the evidence. Choose the next move.</h2></div></div>
+    <span class="planning-mode">Demo evidence · human review</span>
+  </header>
+  <div class="planning-review-grid">
+    {% for card in planning_cards %}
+    <article class="planning-review-card" data-planning-branch="{{ card.branch_id }}" data-decision-id="{{ card.decision_id }}">
+      <div class="planning-card-top"><strong>{{ card.branch }}</strong><span class="status-label {{ 'status-healthy' if card.ready else 'status-review' }}">{{ 'Ready to review' if card.ready else 'Inputs needed' }}</span></div>
+      <h3>{{ card.title }}</h3><p class="planning-product">{{ card.sku }}</p>
+      <dl class="planning-figures"><div><dt>Available</dt><dd>{{ card.available if card.available is not none else 'Unverified' }}{% if card.available is not none %}<small> units</small>{% endif %}</dd></div><div><dt>Suggested order</dt><dd>{{ card.quantity if card.quantity is not none else 'Not ready' }}{% if card.quantity is not none %}<small> units</small>{% endif %}</dd></div></dl>
+      {% if card.reasons %}<div class="planning-input-needed"><strong>Why input is needed</strong><p>{{ card.reasons[0] }}</p>{% if card.reasons|length > 1 %}<details><summary>{{ card.reasons|length - 1 }} more checks</summary><ul>{% for reason in card.reasons[1:] %}<li>{{ reason }}</li>{% endfor %}</ul></details>{% endif %}</div>{% else %}<div class="planning-input-needed ready"><strong>Why review this</strong><p>{{ card.demand }} forecast units, checked against usable stock, expiry, incoming supply, and supplier rules.</p></div>{% endif %}
+      <a class="planning-card-link" href="{{ url_for('ai_predictions',branch_id=card.branch_id,sku_id=card.sku_id) }}">{{ 'Review recommendation' if card.ready else 'Review missing inputs' }} {{ icon('arrow',15) }}</a>
+    </article>
+    {% else %}<div class="planning-empty"><h3>No products ready for planning</h3><p>Approve branch products and verify opening stock to start a review.</p><a href="{{ url_for('catalog.catalog_page') }}">Review catalog {{ icon('arrow',15) }}</a></div>{% endfor %}
+  </div>
+  <footer class="planning-center-footer"><div><strong>HQ plans. Branches execute.</strong><p>Compare the options with your assistant before opening an operational workflow.</p></div><div class="action-group"><a class="button button-secondary" href="{{ url_for('ai_predictions',branch_id=request.args.get('branch_id')) }}">Open planning</a><button class="button button-primary" type="button" data-assistant-open data-assistant-prompt="recommendations" aria-haspopup="dialog" aria-controls="assistant-panel">{{ icon('spark',17) }} Review with assistant</button></div></footer>
+</section>

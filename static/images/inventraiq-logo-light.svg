@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 32" role="img" aria-labelledby="brand-title">
+  <title id="brand-title">InventraIQ</title>
+  <path fill="#ffffff" d="M4 4H26Q28 4 28 6V12H24V8H8V12H2V6Q2 4 4 4Z M4 12H12V20H4ZM20 12H30V14H28V16H30V20H20Z M2 20H8V24H24V20H28V26Q28 28 26 28H4Q2 28 2 26Z"/>
+  <text font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="650" letter-spacing="-0.6" x="43" y="25" fill="#ffffff">InventraIQ</text>
+</svg>

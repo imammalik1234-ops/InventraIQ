@@ -1,0 +1,437 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import csrf, page_header, workflow_state %}
+{% block title %}
+  Purchasing | InventraIQ
+{% endblock %}
+{% block content %}
+  <div class="transfer-workspace">
+    {% call page_header('Purchasing','Follow supplier orders from draft to approved delivery. Inspect outstanding quantities before receiving.','OPERATIONS / PROCUREMENT') %}
+      {% if scope.role=='hq_admin' and not scope.consolidated %}<a class="button button-primary" href="#create-purchase-heading">New purchase order</a>{% endif %}
+      <a class="button button-secondary" href="#purchase-orders-caption">Order queue</a>
+    {% endcall %}
+    <ol class="workflow-steps" aria-label="Purchase order lifecycle"><li><strong>Draft</strong><span>Record agreed supplier costs</span></li><li><strong>Independent approval</strong><span>Requester cannot approve</span></li><li><strong>Receive</strong><span>Inspect the physical delivery</span></li><li><strong>Reconcile</strong><span>Track outstanding quantities</span></li></ol>
+    <dl class="summary-ledger"><div><dt>Orders on this page</dt><dd>{{ data.orders|length }}</dd></div><div><dt>Suppliers in view</dt><dd>{{ suppliers|length }}</dd></div><div><dt>Purchasing currency</dt><dd>MYR</dd></div></dl>
+    <p class="workflow-note">Approved orders are not yet available stock.</p>
+    {% if scope.consolidated %}
+      <div class="scope-banner">
+        Select a branch to create a purchase order.
+      </div>
+    {% endif %}
+    {% if detail %}
+      <section class="work-section">
+        <div class="section-heading"><h2>PO #{{ detail.order_id }} <span class="status-label">{{ workflow_state(detail.state) }}</span></h2></div>
+        <p>
+          {{ detail.supplier_snapshot.code }} · {{ branch_names.get(detail.branch_id|string, 'Branch ' ~ detail.branch_id) }} · Expected {{ detail.expected_date or 'Not set' }}
+        </p>
+        <dl class="summary-ledger"><div><dt>Ordered MYR</dt><dd>{{ detail.ordered_cost }}</dd></div><div><dt>Received MYR</dt><dd>{{ detail.received_cost }}</dd></div><div><dt>Outstanding MYR</dt><dd>{{ detail.outstanding_cost }}</dd></div><div><dt>Cancelled MYR</dt><dd>{{ detail.cancelled_cost }}</dd></div></dl>
+        <p class="field-hint">Quarantined deliveries remain unavailable for sale.</p>
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="po-lines-caption">
+          <table>
+            <caption id="po-lines-caption">
+              PO #{{ detail.order_id }} line quantities in units and agreed unit costs in MYR.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">
+                  Line / SKU
+                </th>
+                <th scope="col">
+                  Unit cost MYR
+                </th>
+                <th scope="col">
+                  Ordered
+                </th>
+                <th scope="col">
+                  Received
+                </th>
+                <th scope="col">
+                  Cancelled
+                </th>
+                <th scope="col">
+                  Outstanding
+                </th>
+                <th scope="col">
+                  Approved inbound
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for l in detail.lines %}
+                <tr>
+                  <th scope="row">
+                    {{ l.line_id }} / {{ l.sku_id }}
+                  </th>
+                  <td class="numeric">
+                    {{ l.unit_cost }}
+                  </td>
+                  <td class="numeric">
+                    {{ l.ordered }}
+                  </td>
+                  <td class="numeric">
+                    {{ l.received }}
+                  </td>
+                  <td class="numeric">
+                    {{ l.cancelled }}
+                  </td>
+                  <td class="numeric">
+                    {{ l.outstanding }}
+                  </td>
+                  <td class="numeric">
+                    {{ l.approved_inbound }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if scope.role=='hq_admin' and not scope.consolidated %}
+          {% set actions=['submit','cancel'] if detail.state=='Draft' else ['reject','cancel']+(['approve'] if detail.requester_id!=scope.actor_id else []) if detail.state=='Submitted' else ['cancel'] if detail.state in ('Approved','PartiallyReceived') else [] %}
+          {% for action in actions %}
+            <details class="workflow-action"><summary>{{ action|capitalize }} PO</summary>
+<form class="form-stack" aria-label="{{ action|capitalize }} PO {{ detail.order_id }}" method="POST" data-enhance-form action="{{ url_for('purchasing.action_form',order_id=detail.order_id,action=action,branch_id=request.args.get('branch_id')) }}">
+              {{ csrf() }}
+              <input type="hidden" name="expected_version" value="{{ detail.version }}">
+              <input type="hidden" name="request_key" value="{{ request_key() }}">
+              <input type="hidden" name="business_reference" value="PO-{{ detail.order_id }}">
+              <label>
+                Reason for {{ action }}{{ ' remaining quantities' if action=='cancel' else '' }}
+                <input name="reason" required maxlength="255">
+              </label>
+              <button class="button button-secondary">
+                {{ action|capitalize }} PO{{ ' remaining' if action=='cancel' else '' }}
+              </button>
+            </form>
+</details>
+          {% endfor %}
+        {% endif %}
+        {% if scope.role in ('hq_admin','manager') and not scope.consolidated and detail.state in ('Approved','PartiallyReceived') %}
+          {% for l in detail.lines if l.outstanding %}
+            <details>
+              <summary>
+                Receive PO line {{ l.line_id }} ({{ l.outstanding }} outstanding)
+              </summary>
+              <form class="form-stack" aria-label="Receive PO {{ detail.order_id }} line {{ l.line_id }}" method="POST" data-enhance-form data-lot-mode action="{{ url_for('purchasing.action_form',order_id=detail.order_id,action='receive',branch_id=request.args.get('branch_id')) }}">
+                {{ csrf() }}
+                <input type="hidden" name="line_id" value="{{ l.line_id }}">
+                <input type="hidden" name="expected_version" value="{{ detail.version }}">
+                <input type="hidden" name="request_key" value="{{ request_key() }}">
+                <input type="hidden" name="business_reference" value="PO-{{ detail.order_id }}">
+                <div class="form-grid">
+                  <label>
+                    Lot action
+                    <select name="mode">
+                      <option value="new_lot">
+                        Create new observed lot
+                      </option>
+                      <option value="existing_lot">
+                        Receive existing supplier lot
+                      </option>
+                    </select>
+                  </label>
+                  <label data-lot-fields="existing_lot">
+                    Existing lot ID (existing mode)
+                    <input name="lot_id" type="number" min="1" list="po-{{ detail.order_id }}-line-{{ l.line_id }}-lots">
+                    <datalist id="po-{{ detail.order_id }}-line-{{ l.line_id }}-lots">
+                      {% for lot in lot_choices.get(l.line_id,[]) %}<option value="{{ lot.lot_id }}">{{ lot.lot_code }} · expiry {{ lot.expiry_date or 'Undated' }}</option>{% endfor %}
+                    </datalist>
+                    <span class="field-hint">Up to 100 branch {{ detail.branch_id }} lots for this supplier and SKU. Enter a known lot ID if not suggested. Verify the observed label; approval and expiry checks still apply.</span>
+                  </label>
+                  <label data-lot-fields="new_lot">
+                    Internal lot code (new mode)
+                    <input name="lot_code" maxlength="80">
+                  </label>
+                  <label data-lot-fields="new_lot">
+                    Actual supplier lot code (new mode)
+                    <input name="supplier_lot_code" maxlength="100">
+                  </label>
+                  <label>
+                    Actual quantity
+                    <input name="quantity" type="number" min="1" max="{{ l.outstanding }}" required>
+                  </label>
+                  <label>
+                    Observed expiry label
+                    <input name="expiry_date" type="date">
+                  </label>
+                  <label>
+                    Delivery-line reference (reuse on retries)
+                    <input name="external_reference" required maxlength="100">
+                  </label>
+                  <label>
+                    Disposition
+                    <select name="receipt_kind">
+                      <option value="normal">
+                        Inspected ordinary stock
+                      </option>
+                      <option value="quarantine">
+                        Damaged, expired or requires quarantine
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Observed delivery / label evidence
+                    <input name="evidence" required maxlength="255">
+                  </label>
+                  <label>
+                    Reason
+                    <input name="reason" required maxlength="255">
+                  </label>
+                </div>
+                <div class="form-actions">
+                  <button class="button button-primary" type="submit">
+                    Receive PO delivery
+                  </button>
+                </div>
+              </form>
+            </details>
+          {% endfor %}
+        {% endif %}
+        <details class="evidence-disclosure"><summary>Receipt evidence and audited activity</summary>        <h3>
+          Receipt evidence
+        </h3>
+        <ul>
+          {% for r in detail.receipts %}
+            <li>
+              Line {{ r.line_id }} | {{ r.quantity }} received, {{ r.quarantined }} quarantined | lot {{ r.lot_id }} | receipt #{{ r.receipt_id }} | operation #{{ r.operation_id }} | movement #{{ r.movement_id }} | {{ r.external_reference }}
+            </li>
+          {% else %}
+            <li>
+              No recorded receipts.
+            </li>
+          {% endfor %}
+        </ul>
+        {% if detail.receipts_truncated %}
+          <p>
+            Latest 100 receipts shown; full evidence remains in the ledger.
+          </p>
+        {% endif %}
+        <h3>
+          Audited activity
+        </h3>
+        <ol>
+          {% for e in detail.events %}
+            <li>
+              {{ workflow_state(e.state) }} | actor {{ e.actor_id }} | {{ e.date }} | {{ e.reason }} | operation #{{ e.operation_id }}
+            </li>
+          {% endfor %}
+        </ol>
+</details>
+      </section>
+    {% endif %}
+
+    <section class="work-section">
+      <h2>
+        Purchase order queue
+      </h2>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="purchase-orders-caption">
+        <table>
+          <caption id="purchase-orders-caption">
+            Select an order to inspect outstanding quantities and receive an approved delivery. Costs are recorded MYR purchasing facts.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">
+                PO
+              </th>
+              <th scope="col">
+                Branch
+              </th>
+              <th scope="col">
+                Status
+              </th>
+              <th scope="col" class="numeric">
+                Ordered cost MYR
+              </th>
+              <th scope="col" class="numeric">
+                Received cost MYR
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for po in data.orders %}
+              <tr>
+                <th scope="row">
+                  <a href="{{ url_for('purchasing.page',branch_id=request.args.get('branch_id'),order_id=po.order_id) }}">
+                    #{{ po.order_id }}
+                  </a>
+                </th>
+                <td>
+                  {{ po.branch_id }}
+                </td>
+                <td><span class="status-label">{{ workflow_state(po.state) }}</span></td>
+                <td class="numeric">
+                  {{ po.ordered_cost }}
+                </td>
+                <td class="numeric">
+                  {{ po.received_cost }}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5">
+                  No recorded orders.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if data.page>1 %}
+        <a href="{{ url_for('purchasing.page',branch_id=request.args.get('branch_id'),page=data.page-1) }}">
+          Previous
+        </a>
+      {% endif %}
+      {% if data.has_more %}
+        <a href="{{ url_for('purchasing.page',branch_id=request.args.get('branch_id'),page=data.page+1) }}">
+          Next
+        </a>
+      {% endif %}
+    </section>
+    {% if scope.role=='hq_admin' and not scope.consolidated %}
+      <details class="workflow-create" id="new-po"><summary>New purchase order</summary>
+      <section class="work-section">
+        <h2 id="create-purchase-heading">Create purchase order</h2>
+        <p id="po-lines-guidance" class="field-hint">
+          Leave unused item lines blank. Supplier, business reference and reason are required.
+        </p>
+        <form aria-label="Create purchase order" aria-describedby="po-lines-guidance" method="POST" data-enhance-form action="{{ url_for('purchasing.create_form',branch_id=request.args.get('branch_id')) }}">
+          {{ csrf() }}
+          <input type="hidden" name="request_key" value="{{ request_key() }}">
+          <div class="form-grid">
+            <label>
+              Supplier
+              <select name="supplier_id" required>
+                {% for s in suppliers if s.active %}
+                  <option value="{{ s.supplier_id }}">
+                    {{ s.code }} | {{ s.display_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Expected delivery date (optional)
+              <input name="expected_date" type="date">
+            </label>
+            {% for i in range(3) %}
+              {% if i==1 %}<details class="full additional-lines"><summary>Add more order lines (optional)</summary>{% endif %}
+              <label>
+                SKU {{ i+1 }}
+                <select name="sku_id">
+                  <option value="">
+                    Choose SKU
+                  </option>
+                  {% for s in skus %}
+                    <option value="{{ s.sku_id }}">
+                      {{ s.code }} | {{ s.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Quantity {{ i+1 }}
+                <input name="quantity" type="number" min="1">
+              </label>
+              <label>
+                Agreed unit cost {{ i+1 }} (MYR)
+                <input name="unit_cost" inputmode="decimal" placeholder="0.00" aria-describedby="po-lines-guidance">
+              </label>
+              {% if i==2 %}</details>{% endif %}
+            {% endfor %}
+            <label>
+              Business reference
+              <input name="business_reference" required maxlength="100">
+            </label>
+            <label>
+              Reason
+              <input name="reason" required maxlength="255">
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">
+              Create PO draft
+            </button>
+          </div>
+        </form>
+      </section>
+      </details>
+    {% endif %}
+    <details class="workflow-tools"><summary>Supplier directory and maintenance</summary>
+    <section class="work-section">
+      <h2>
+        Suppliers
+      </h2>
+      <ul class="record-list">
+        {% for s in suppliers %}
+          <li class="record-row">
+            <strong>{{ s.code }}</strong> &middot; {{ s.display_name }} <span class="status-label">{{ 'Active' if s.active else 'Archived' }}</span><span class="cell-secondary">Revision {{ s.version }}</span>
+            {% if scope.role=='hq_admin' %}
+              <details>
+                <summary>
+                  Edit supplier {{ s.code }}
+                </summary>
+                <form class="form-stack" aria-label="Edit supplier {{ s.code }}" method="POST" data-enhance-form action="{{ url_for('purchasing.supplier_form',branch_id=request.args.get('branch_id')) }}">
+                  {{ csrf() }}
+                  <input type="hidden" name="supplier_id" value="{{ s.supplier_id }}">
+                  <input type="hidden" name="expected_version" value="{{ s.version }}">
+                  <label>
+                    Name
+                    <input name="display_name" value="{{ s.display_name }}" required maxlength="100">
+                  </label>
+                  <label>
+                    Status
+                    <select name="active">
+                      <option value="true" {% if s.active %}selected{% endif %}>
+                        Active
+                      </option>
+                      <option value="false" {% if not s.active %}selected{% endif %}>
+                        Archived
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Reason
+                    <input name="reason" required maxlength="255">
+                  </label>
+                  <button class="button button-secondary">
+                    Save supplier
+                  </button>
+                </form>
+              </details>
+            {% endif %}
+          </li>
+        {% else %}
+          <li>
+            No recorded suppliers. Legacy supplier text remains unmapped.
+          </li>
+        {% endfor %}
+      </ul>
+      {% if scope.role=='hq_admin' %}
+        <details>
+          <summary>
+            Create supplier
+          </summary>
+          <form class="form-stack" aria-label="Create supplier" method="POST" data-enhance-form action="{{ url_for('purchasing.supplier_form',branch_id=request.args.get('branch_id')) }}">
+            {{ csrf() }}
+            <input type="hidden" name="expected_version" value="0">
+            <input type="hidden" name="active" value="true">
+            <label>
+              Stable code
+              <input name="code" required maxlength="80">
+            </label>
+            <label>
+              Name
+              <input name="display_name" required maxlength="100">
+            </label>
+            <label>
+              Reason
+              <input name="reason" required maxlength="255">
+            </label>
+            <button class="button button-primary">
+              Create supplier
+            </button>
+          </form>
+        </details>
+      {% endif %}
+    </section>
+    </details>
+  </div>
+{% endblock %}

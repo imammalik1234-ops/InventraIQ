@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import csrf, page_header, workflow_state %}
+{% block title %}
+  Transfers | InventraIQ
+{% endblock %}
+{% block content %}
+  <div class="transfer-workspace">
+    {% call page_header('Transfers','Move stock between branches with approval, original lot evidence and destination inspection.','OPERATIONS / STOCK MOVEMENT') %}
+      {% if choices and not scope.consolidated %}<a class="button button-primary" href="#create-transfer-heading">New transfer draft</a>{% endif %}
+      <a class="button button-secondary" href="#transfer-proposals-caption">Transfer queue</a>
+    {% endcall %}
+    <ol class="workflow-steps" aria-label="Transfer lifecycle"><li><strong>Propose</strong><span>Define source and destination</span></li><li><strong>Approve</strong><span>Reserve eligible source stock</span></li><li><strong>Dispatch</strong><span>Move goods into transit</span></li><li><strong>Receive</strong><span>Inspect actual arrival</span></li></ol>
+    <dl class="summary-ledger"><div><dt>Transfers on this page</dt><dd>{{ data.transfers|length }}</dd></div><div><dt>View</dt><dd class="summary-text">{{ 'Company oversight' if scope.consolidated else 'Selected branch' }}</dd></div><div><dt>Approval</dt><dd class="summary-text">Independent HQ review</dd></div></dl>
+    {% if scope.consolidated %}
+      <div class="scope-banner">
+        Select a source branch to create a transfer.
+      </div>
+    {% endif %}
+    {% if detail %}
+      <section class="work-section">
+        <div class="section-heading"><h2>Transfer #{{ detail.transfer_id }} <span class="status-label">{{ workflow_state(detail.state) }}</span></h2></div>
+        <p>
+          {{ branch_names.get(detail.source_branch_id|string, 'Branch ' ~ detail.source_branch_id) }} → {{ branch_names.get(detail.destination_branch_id|string, 'Branch ' ~ detail.destination_branch_id) }} · Expected {{ detail.planned_arrival_utc }}
+        </p>
+        <ul>
+          {% for line in detail.lines %}
+            <li>
+              SKU {{ line.sku_id }}: {{ line.quantity }} units
+            </li>
+          {% endfor %}
+        </ul>
+        {% if execution_forms %}
+        <h3>Shipment actions</h3>
+        {% for form in execution_forms %}
+          <details class="workflow-action" {% if form.action=='receive' %}open{% endif %}><summary>{{ form.action|capitalize }} shipment{% if form.data.lines %} · allocation {{ form.data.lines[0].allocation_id }}{% elif form.data.discrepancy_id %} · discrepancy {{ form.data.discrepancy_id }}{% endif %}</summary>
+          <form class="form-stack" aria-label="{{ form.action|capitalize }} shipment {{ detail.transfer_id }}{% if form.data.lines %} allocation {{ form.data.lines[0].allocation_id }}{% elif form.data.discrepancy_id %} discrepancy {{ form.data.discrepancy_id }}{% endif %}" method="POST" data-enhance-form action="{{ url_for('transfers.action_form',transfer_id=detail.transfer_id,action=form.action,branch_id=request.args.get('branch_id')) }}">
+            {{ csrf() }}
+            <input type="hidden" name="payload" value='{{ form.data|tojson|forceescape }}'>
+            {% if form.action in ('receive','return','discrepancy') %}
+              <label>
+                Actual quantity
+                <input name="quantity" type="number" min="1" value="{{ form.data.quantity if form.action=='discrepancy' else form.data.lines[0].quantity }}" required>
+              </label>
+            {% endif %}
+            {% if form.action=='receive' %}
+              <label>
+                Inspection disposition
+                <select name="disposition">
+                  <option value="saleable">
+                    Inspected saleable
+                  </option>
+                  <option value="quarantine">
+                    Damaged or requires quarantine
+                  </option>
+                </select>
+              </label>
+              <p>
+                Expired or insufficient-life arrivals are automatically quarantined.
+              </p>
+            {% endif %}
+            {% if form.action=='resolve' %}
+              <label>
+                Resolution
+                <select name="decision">
+                  {% if form.data.decision=='quarantine_acknowledged' %}
+                    <option value="quarantine_acknowledged">
+                      Acknowledge quarantine; keep stock unavailable
+                    </option>
+                  {% else %}
+                    <option value="found">
+                      Located; retain in transit until actual receipt
+                    </option>
+                    <option value="loss">
+                      Authorize evidenced loss; permanently record quantity
+                    </option>
+                  {% endif %}
+                </select>
+              </label>
+            {% endif %}
+            {% if form.action=='return' %}
+              <label>
+                Return planned arrival (ISO timestamp with timezone)
+                <input name="planned_arrival_utc" required placeholder="2030-01-03T12:00:00+08:00">
+              </label>
+              <p>
+                Creates a linked reverse draft for eligible received goods; independent HQ approval and dispatch are still required. Quarantined returns remain gated.
+              </p>
+            {% endif %}
+            <label>
+              Evidence and reason
+              <input name="reason" maxlength="255" required>
+            </label>
+            <button class="button button-secondary" type="submit">
+              {{ form.action|capitalize }} shipment
+            </button>
+          </form>
+          </details>
+        {% endfor %}
+        {% endif %}
+        <h3>
+          Original lot reservations
+        </h3>
+        <ul>
+          {% for r in detail.reservations %}
+            <li>
+              Lot {{ r.lot_id }}: {{ r.quantity }} approved, {{ r.remaining }} remaining
+            </li>
+          {% else %}
+            <li>
+              No stock reserved.
+            </li>
+          {% endfor %}
+        </ul>
+        {% if not scope.consolidated and scope.role in ('hq_admin','manager') and detail.source_branch_id in scope.branches %}
+          {% set actions = (['submit','cancel'] if detail.state=='Draft' else ['cancel'] if detail.state=='Submitted' else []) %}
+          {% if scope.role=='hq_admin' and detail.state=='Submitted' %}
+            {% set actions=actions+(['approve'] if detail.requester_id!=scope.actor_id else [])+['reject'] %}
+          {% endif %}
+          {% if scope.role=='hq_admin' and detail.state=='Approved' %}
+            {% set actions=['cancel'] %}
+          {% endif %}
+          {% for action in actions %}
+            <details class="workflow-action"><summary>{{ action|capitalize }} transfer</summary>
+<form class="form-stack" aria-label="{{ action|capitalize }} transfer {{ detail.transfer_id }}" method="POST" data-enhance-form action="{{ url_for('transfers.action_form',transfer_id=detail.transfer_id,action=action,branch_id=request.args.get('branch_id')) }}">
+              {{ csrf() }}
+              <input type="hidden" name="expected_version" value="{{ detail.version }}">
+              <input type="hidden" name="request_key" value="{{ request_key() }}">
+              <input type="hidden" name="business_reference" value="TRANSFER-{{ detail.transfer_id }}">
+              <label>
+                Reason for {{ action }}
+                <input name="reason" maxlength="255" required>
+              </label>
+              <button type="submit" class="button button-secondary">
+                {{ action|capitalize }} transfer
+              </button>
+            </form>
+</details>
+          {% endfor %}
+        {% endif %}
+        {% if detail.transit %}
+          <h3>
+            Shipment progress
+          </h3>
+          <div class="table-scroll" tabindex="0" role="region" aria-labelledby="shipment-quantities-caption">
+            <table>
+              <caption id="shipment-quantities-caption">
+                Transfer #{{ detail.transfer_id }} lot quantities in units. Physical receipt includes quarantine.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">
+                    Lot
+                  </th>
+                  <th scope="col">
+                    Dispatched
+                  </th>
+                  <th scope="col">
+                    In transit
+                  </th>
+                  <th scope="col">
+                    Physically received
+                  </th>
+                  <th scope="col">
+                    Authorized loss
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in detail.transit %}
+                  <tr>
+                    <th scope="row">
+                      {{ t.lot_id }}
+                    </th>
+                    <td class="numeric">
+                      {{ t.dispatched }}
+                    </td>
+                    <td class="numeric">
+                      {{ t.remaining }}
+                    </td>
+                    <td class="numeric">
+                      {{ t.received }}
+                    </td>
+                    <td class="numeric">
+                      {{ t.lost }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Dispatch operation #{{ detail.dispatch_operation_id }} | {{ detail.dispatched_at_utc }}. Physical receipt includes quarantined units; quarantine is never available stock.
+          </p>
+        {% endif %}
+        <details class="evidence-disclosure"><summary>Quantity evidence, discrepancies and state history</summary>        <h3>
+          Committed quantity evidence
+        </h3>
+        <ul>
+          {% for effect in detail.effects %}
+            <li>
+              Operation #{{ effect.operation_id }} | {{ effect.kind }} | transit {{ effect.transit_before }} to {{ effect.transit_after }} (delta {{ effect.transit_delta }})
+              {% if effect.branch_effect %}
+                | branch {{ effect.branch_effect.branch_id }}, lot {{ effect.branch_effect.lot_id }}, movement #{{ effect.branch_effect.movement_id }}: physical {{ effect.branch_effect.before_on_hand }} to {{ effect.branch_effect.after_on_hand }}, reserved {{ effect.branch_effect.before_reserved }} to {{ effect.branch_effect.after_reserved }}, quarantine {{ effect.branch_effect.before_quarantined }} to {{ effect.branch_effect.after_quarantined }}
+              {% endif %}
+            </li>
+          {% else %}
+            <li>
+              No dispatch or receipt effects.
+            </li>
+          {% endfor %}
+        </ul>
+        {% if detail.effects_truncated %}
+          <p>
+            Latest 50 quantity changes.
+          </p>
+        {% endif %}
+        <h3>
+          Discrepancies
+        </h3>
+        <ul>
+          {% for d in detail.discrepancies %}
+            <li>
+              #{{ d.discrepancy_id }} | allocation {{ d.allocation_id }} | {{ d.quantity }} units in {{ d.location }} | {{ d.reason }} | {{ d.resolution or 'Open review' }} | operation #{{ d.operation_id }}
+            </li>
+          {% else %}
+            <li>
+              No discrepancies recorded.
+            </li>
+          {% endfor %}
+        </ul>
+        <h3>
+          State history
+        </h3>
+        <ol>
+          {% for e in detail.events %}
+            <li>
+              {{ workflow_state(e.to_state) }} | {{ e.occurred_at_utc }} | actor {{ e.actor_id }} | {{ e.reason }} | operation #{{ e.operation_id }}
+            </li>
+          {% endfor %}
+        </ol>
+</details>
+      </section>
+    {% endif %}
+    <section class="work-section">
+      <h2>
+        Transfer queue
+      </h2>
+      <div class="table-scroll" role="region" aria-labelledby="transfer-proposals-caption" tabindex="0">
+        <table>
+          <caption id="transfer-proposals-caption">
+            Select a transfer to inspect reservations, dispatch and receipt evidence.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">
+                Transfer
+              </th>
+              <th scope="col">
+                Source
+              </th>
+              <th scope="col">
+                Destination
+              </th>
+              <th scope="col">
+                State
+              </th>
+              <th scope="col" class="numeric">
+                Version
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in data.transfers %}
+              <tr>
+                <th scope="row">
+                  <a href="{{ url_for('transfers.page',branch_id=request.args.get('branch_id'),transfer_id=t.transfer_id) }}">
+                    #{{ t.transfer_id }}
+                  </a>
+                </th>
+                <td>
+                  {{ branch_names.get(t.source_branch_id|string, 'Branch ' ~ t.source_branch_id) }}
+                </td>
+                <td>
+                  {{ branch_names.get(t.destination_branch_id|string, 'Branch ' ~ t.destination_branch_id) }}
+                </td>
+                <td><span class="status-label">{{ workflow_state(t.state) }}</span></td>
+                <td class="numeric">
+                  {{ t.version }}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5">
+                  No transfers in this scope.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if data.page>1 %}
+        <a href="{{ url_for('transfers.page',branch_id=request.args.get('branch_id'),page=data.page-1) }}">
+          Previous
+        </a>
+      {% endif %}
+      {% if data.has_more %}
+        <a href="{{ url_for('transfers.page',branch_id=request.args.get('branch_id'),page=data.page+1) }}">
+          Next
+        </a>
+      {% endif %}
+    </section>
+    {% if choices and not scope.consolidated %}
+      <details class="workflow-create" id="new-transfer"><summary>New transfer draft</summary>
+      <section class="work-section">
+        <h2 id="create-transfer-heading">Create draft</h2>
+        <p id="transfer-draft-guidance" class="field-hint">
+          Leave unused item lines blank.
+        </p>
+        <form aria-label="Create transfer draft" aria-describedby="transfer-draft-guidance" method="POST" data-enhance-form action="{{ url_for('transfers.create_form',branch_id=request.args.get('branch_id')) }}">
+          {{ csrf() }}
+          <input type="hidden" name="request_key" value="{{ request_key() }}">
+          <div class="form-grid">
+            <label>
+              Destination branch
+              <select name="destination_branch_id" required>
+                {% for b in choices.branches %}
+                  <option value="{{ b.branch_id }}">
+                    {{ b.display_name|branch_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Planned arrival (ISO timestamp with timezone)
+              <input name="planned_arrival_utc" placeholder="2030-01-02T12:00:00+08:00" required>
+            </label>
+            {% for i in range(3) %}
+              {% if i==1 %}<details class="full additional-lines"><summary>Add more transfer lines (optional)</summary>{% endif %}
+              <label>
+                SKU {{ i+1 }}
+                <select name="sku_id">
+                  <option value="">
+                    Choose SKU
+                  </option>
+                  {% for s in choices.skus %}
+                    <option value="{{ s.sku_id }}">
+                      {{ s.code }} | {{ s.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Quantity {{ i+1 }}
+                <input name="quantity" type="number" min="1" max="2147483647">
+              </label>
+              {% if i==2 %}</details>{% endif %}
+            {% endfor %}
+            <label>
+              Business reference
+              <input name="business_reference" maxlength="100" required>
+            </label>
+            <label>
+              Reason
+              <input name="reason" maxlength="255" required>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">
+              Create draft
+            </button>
+          </div>
+        </form>
+      </section>
+      </details>
+    {% endif %}
+
+  </div>
+{% endblock %}

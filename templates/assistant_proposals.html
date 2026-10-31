@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import csrf, page_header %}
+{% block title %}Review assistant proposal | InventraIQ{% endblock %}
+{% block content %}
+{% call page_header('Action proposals','Review a bounded stock action, inspect the evidence and make the final decision.','INTELLIGENCE / HUMAN REVIEW') %}<a class="button button-secondary" href="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}">Inspect scoped inventory</a>{% endcall %}
+<ol class="workflow-steps" aria-label="Human approval workflow"><li><strong>Propose</strong><span>Snapshot scoped inventory evidence</span></li><li><strong>Review</strong><span>Inspect the exact facts and effect</span></li><li><strong>Confirm</strong><span>Recheck permission and stock revision</span></li></ol>
+<div class="notice" role="status">Local demonstration. No live model is used here. Creating a proposal changes no operational records. Only a separate human confirmation initiates the reviewed effect.</div>
+{% if not proposal %}
+<div class="workspace-grid"><div class="workspace-main"><section class="work-section"><h2>Create a proposal for review</h2>
+<p>Select one source branch using the normal branch selector first. Only a branch manager or HQ administrator with the existing action permission can propose and confirm.</p>
+{% if can_propose_actions|default(false) %}
+<form method="post" action="{{ url_for('assistant_proposals.create') }}">{{ csrf() }}
+<input type="hidden" name="request_key" value="{{ request_key }}">
+<label for="proposal-question">Exact local proposal question</label>
+<textarea placeholder="Use one of the supported local proposal formats" id="proposal-question" name="question" required maxlength="500" rows="3"></textarea>
+<button type="submit" class="button button-primary">Create proposal for review</button></form>
+{% else %}<p class="notice neutral">{% if scope.role in ['hq_admin','manager'] %}Select one authorized source branch to create a proposal.{% else %}Your role can review inventory evidence. Creating and confirming stock-action proposals requires an authorized manager or HQ administrator.{% endif %}</p>{% endif %}
+</section></div><aside class="workspace-aside work-section"><p class="eyebrow">SUPPORTED ACTIONS</p><h2>Two bounded proposals</h2><ul class="record-list"><li class="record-row"><strong>Transfer draft</strong><span class="cell-secondary">Creates Draft only. Independent HQ approval, dispatch and receiving stay separate.</span></li><li class="record-row"><strong>Physical write-off</strong><span class="cell-secondary">Decreases the reviewed lot through the existing ledger. Reservations remain protected.</span></li></ul><p>Supported local syntax:</p><ul><li><code>propose write-off SKU 121 lot 1 quantity 1</code></li>
+<li><code>propose transfer SKU 121 quantity 1 to branch 2 arriving 2031-01-05T08:00:00+00:00</code></li></ul>
+<p>Verify actual IDs and a future arrival using your scoped inventory. The examples do not establish stock availability.</p>
+<p class="workflow-note">T26 live evidence completeness and generated explanations remain unverified. No urgency ranking or transfer recommendation is established.</p></aside></div>
+{% else %}
+<section class="work-section" aria-labelledby="proposal-review-title">
+<div class="section-heading"><h2 id="proposal-review-title">{{ 'Transfer draft' if proposal.action=='propose_transfer' else 'Physical write-off' }}</h2><span class="status-label">{{ proposal.state|capitalize }}</span></div>
+<p role="status">These facts were captured when the proposal was created. This page does not refresh them. Confirmation revalidates them and rejects changed facts; fresh facts require a new proposal.</p>
+<dl class="definition-list proposal-facts"><div><dt>Source branch</dt><dd>{{ proposal.facts.source_branch }} (#{{ proposal.facts.source_branch_id }})</dd></div>
+{% if proposal.facts.destination_branch is defined %}<div><dt>Destination branch</dt><dd>{{ proposal.facts.destination_branch }} (#{{ proposal.facts.destination_branch_id }})</dd></div>
+<div><dt>Planned arrival</dt><dd>{{ proposal.facts.planned_arrival_utc }}</dd></div>{% endif %}
+<div><dt>Product</dt><dd>{{ proposal.facts.product }} ({{ proposal.facts.sku }})</dd></div>
+{% if proposal.facts.lot_code is defined %}<div><dt>Lot</dt><dd>{{ proposal.facts.lot_code }}; stock revision {{ proposal.facts.stock_revision }}</dd></div>{% endif %}
+<div><dt>Quantity</dt><dd>{{ proposal.facts.quantity }} {{ proposal.facts.unit }}</dd></div>
+<div><dt>Eligible / unreserved units at evidence time</dt><dd>{{ proposal.facts.available }}</dd></div>
+{% if proposal.facts.physical_before is defined %}<div><dt>Physical stock after confirmation</dt><dd>{{ proposal.facts.physical_before }} → {{ proposal.facts.physical_after }} {{ proposal.facts.unit }}</dd></div>
+<div><dt>Reserved stock</dt><dd>{{ proposal.facts.reserved }} units; cannot be written off</dd></div>
+<div><dt>Quarantined stock</dt><dd>{{ proposal.facts.quarantine }} units; consumed first for disposal</dd></div>
+<div><dt>Expiry classification</dt><dd>{{ proposal.facts.expiry_status }}; days remaining: {{ proposal.facts.days_remaining if proposal.facts.days_remaining is not none else 'unavailable' }}</dd></div>{% endif %}
+<div><dt>Reason</dt><dd>{{ proposal.arguments.reason }}</dd></div><div><dt>Evidence as of</dt><dd>{{ proposal.facts.as_of }}</dd></div>
+<div><dt>Proposal expires</dt><dd>{{ proposal.expires_at }}</dd></div></dl>
+<div class="scope-banner"><div><p class="eyebrow">Exact effect of confirmation</p><strong>{{ proposal.facts.effect }}</strong></div></div>
+<h3>Source references</h3><ul>{% for source in proposal.facts.sources %}<li>{{ source }}</li>{% endfor %}</ul>
+<h3>Limits and warnings</h3><ul>{% for warning in proposal.facts.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+<details class="evidence-disclosure"><summary>Proposal integrity reference</summary><p>Proposal {{ proposal.proposal_id }}. Immutable payload SHA-256: <code>{{ proposal.payload_hash }}</code>.</p></details>
+{% if proposal.state == 'pending' %}
+<form method="post" action="{{ url_for('assistant_proposals.confirm',key=proposal.proposal_id) }}">{{ csrf() }}
+<input type="hidden" name="review_token" value="{{ proposal.review_token }}">
+<label><input type="checkbox" name="confirmed" value="yes" required> I reviewed these exact facts and authorize only the effect stated above.</label>
+<button type="submit" class="button button-primary">Confirm exact proposal</button></form>
+<form method="post" action="{{ url_for('assistant_proposals.cancel',key=proposal.proposal_id) }}">{{ csrf() }}
+<button type="submit" class="button button-secondary">Reject / cancel proposal</button></form>
+{% elif proposal.state == 'executed' %}<p role="status">Confirmed once. Business operation #{{ proposal.operation_id }}. Any independent operational approval remains required.</p>
+{% else %}<p role="status">Cancelled. No business action was initiated.</p>{% endif %}
+</section>{% endif %}
+{% endblock %}

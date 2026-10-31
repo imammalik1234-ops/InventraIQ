@@ -1,0 +1,76 @@
+<section class="work-section" aria-labelledby="lot-inventory-heading">
+  <div class="section-heading">
+<div><h2 id="lot-inventory-heading">Lot inventory</h2></div>
+<a href="{{ url_for('sales_native.sales_page',branch_id=request.args.get('branch_id')) }}">Priced sales and returns →</a>
+</div>
+  <dl class="summary-ledger"><div><dt>Available units</dt><dd>{{ report.total.available }}</dd></div><div><dt>Physical units</dt><dd>{{ report.total.on_hand }}</dd></div><div><dt>Low-stock products</dt><dd>{{ report.total.low_stock_skus }}</dd></div><div><dt>Expiry warnings</dt><dd>{{ report.total.warning_lots }}</dd></div></dl>
+  <div class="table-scroll" role="region" aria-labelledby="lot-inventory-caption" tabindex="0">
+<table>
+    <caption id="lot-inventory-caption">{{ report.inventory.total }} matching lots / source rows · page {{ report.filters.page }}. Quantities in units; expiry follows each branch's policy.</caption>
+    <thead>
+<tr>
+<th scope="col">SKU / lot</th>
+<th scope="col">Branch</th>
+<th scope="col">Condition</th>
+<th scope="col" class="numeric">Physical</th>
+<th scope="col" class="numeric">Available</th>
+<th scope="col">Expiry label</th>
+<th scope="col">Evidence / action</th>
+</tr>
+</thead>
+    <tbody>
+{% for row in report.inventory['items'] %}
+<tr>
+      <th scope="row">{{ row.sku_code }}<span class="cell-secondary">{{ row.lot_code }}</span>
+</th>
+<td>{{ row.branch_code|branch_name }}</td>
+<td>
+<span class="status-label status-{{ row.status }}">{{ row.status|replace('_',' ')|capitalize }}</span>
+</td>
+<td class="numeric">{{ row.on_hand }}</td>
+<td class="numeric emphasis">{{ row.available }}</td>
+<td>{{ row.expiry_date or 'Unknown / undated' }}<span class="cell-secondary">{{ row.expiry_timezone or 'Unverified' }}</span>
+</td>
+      <td>
+<details class="lot-evidence">
+<summary>Inspect <span class="sr-only">{{ row.lot_code }} at {{ row.branch_code|branch_name }}</span>
+</summary>
+        <p>{{ row.name }} · {{ row.source }} · branch timezone {{ row.branch_timezone }}. Reserved {{ row.reserved }}, quarantined {{ row.quarantined }} units.</p>
+        {% if row.source=='native_lot' and row.availability_verified and can_adjust_stock and not report.scope.consolidated %}
+          <form method="POST" action="{{ url_for('catalog.stock_page',branch_id=request.args.get('branch_id')) }}" class="form-grid" aria-label="Adjust native lot {{ row.lot_id }}" data-enhance-form>
+            {{ csrf() }}<input type="hidden" name="stock_action" value="adjustment">
+<input type="hidden" name="sku_id" value="{{ row.sku_id }}">
+<input type="hidden" name="lot_id" value="{{ row.lot_id }}">
+<input type="hidden" name="expected_revision" value="{{ row.stock_revision }}">
+            <label>Direction<select name="direction">
+<option value="decrease">Decrease</option>
+<option value="increase">Increase existing eligible lot</option>
+</select>
+</label>
+            <label>Quantity to adjust<input name="quantity" type="number" min="1" max="2147483647" required>
+</label>
+            <label>Kind<select name="kind">
+<option value="adjustment">Count adjustment</option>
+<option value="write_off">Write-off</option>
+</select>
+</label>
+            <input type="hidden" name="request_key" value="{{ row.branch_id }}-{{ row.lot_id }}-{{ row.stock_revision }}-{{ report.as_of_utc }}" maxlength="120" required>
+            <label>Business reference<input name="business_reference" maxlength="100" required>
+</label>
+<label>Required reason<input name="reason" maxlength="255" required>
+</label>
+            <button class="button button-secondary">Record stock adjustment</button>
+          </form>
+        {% endif %}
+      </details>
+</td>
+    </tr>
+{% else %}
+<tr>
+<td colspan="7">No inventory matches this scope and filter.</td>
+</tr>
+{% endfor %}
+</tbody>
+  </table>
+</div>
+</section>

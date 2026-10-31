@@ -1,0 +1,9 @@
+{% from 'components/ui.html' import badge %}
+{% macro cells(item) %}
+<td data-field="available-stock">{{ item.available_stock }}</td>
+<td data-field="predicted-demand">{{ item.forecast.predicted_demand if item.forecast.predicted_demand is not none else 'Withheld' }}</td>
+<td data-field="projected-shortfall">{{ item.projected_shortfall if item.projected_shortfall is not none else 'Withheld' }}</td>
+<td data-field="replenishment">{{ item.recommended_reorder_qty if item.recommended_reorder_qty is not none else 'Withheld' }}</td>
+<td class="review-cell">{{ badge(item.risk_status, 'amber' if item.risk_priority==0 else 'emerald' if item.risk_priority==3 else 'neutral') }}<details class="review-details"><summary>View reasoning</summary><p>{{ item.explanation }}</p><small>Model: {{ item.forecast.status }}. {{ item.forecast.reason }}</small><small>History: {{ item.forecast.history_days }} calendar days / {{ item.forecast.selling_days }} selling days.</small><small>Holdout MAE: {{ item.forecast.mae if item.forecast.mae is not none else 'Unavailable' }} units/day.</small></details></td>
+{% endmacro %}
+{% macro headers() %}<th scope="col">Available</th><th scope="col">Demand · 7 days</th><th scope="col">Shortfall · 7 days</th><th scope="col">Replenishment</th><th scope="col">Decision / evidence</th>{% endmacro %}

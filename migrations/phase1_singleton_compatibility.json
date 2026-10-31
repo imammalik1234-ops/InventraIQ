@@ -1,0 +1,18 @@
+{
+  "fresh_mysql": {
+    "t06_v002_expand_mysql.sql": "bd2e15ae0d48bc7b664e2ef9686533003237d1b0d4fc71de02f7ac9651407044",
+    "t14_v002_expand_mysql.sql": "9fe4dd6e76ed6b6fc510d1212aac6803fb802922f3ef1375c1466191e9532757",
+    "t15_v002_expand_mysql.sql": "bcabc606a17cd3712bc8bd840ff1f2990ec5959722a911dfcbe6ebbf65660e3a",
+    "t20_v002_expand_mysql.sql": "a1cfd03a6d4628ddb0ebea49346e34f634673fee19475eb24ab7dd8d942aa0cd"
+  },
+  "historical": {
+    "t06_v001_expand_mysql.sql": "9fd827972f915af368d66cd633a95f88fc6ca48f224c38732f07c7f826f2f44e",
+    "t06_v001_expand_sqlite.sql": "afb1f940f9325005d2c26e1c44b2e6069e4a9bf08f5b49baf6c468b8564ba096",
+    "t14_v001_expand_mysql.sql": "9678fb91d832543e723f90f8ef90ed71fc6f00346f681506597894e941bf4f92",
+    "t14_v001_expand_sqlite.sql": "09335ff1f4f8cb1af711a8f5837772a56c1ab8cafe8ecf2b81db7a1463764097",
+    "t15_v001_expand_mysql.sql": "294bb6712b95d793ade532525df546d0c490107a5de56993c8efc1a210144c6e",
+    "t16_v001_indexes_mysql.sql": "bebfb379c62c7926ce494217e7b7129f904d232bff43ac1eafd841f06bb1fda1",
+    "t20_v001_expand_mysql.sql": "15aa0d436096bc11ae16d51a87ee60786a487e8cdccf8ee6b3eb43bcbabf278c",
+    "t27_v001_expand_mysql.sql": "d44aac43bb48dbf6f87a86690ce465370ccdcf50a54d00129365531966d205f8"
+  }
+}

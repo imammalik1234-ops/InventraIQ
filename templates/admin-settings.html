@@ -1,0 +1,14 @@
+{% extends 'admin-base.html' %}
+{% from 'components/ui.html' import page_header,icon,csrf %}
+{% from 'components/forms.html' import field %}
+{% block title %}Workspace settings{% endblock %}
+{% block content %}
+{{ page_header('Workspace settings','Your profile, scoped exports and access administration.','ADMINISTRATION / SETTINGS') }}
+{% if success_message %}<div class="notice success" role="status">{{ success_message }}</div>{% endif %}
+{% if error_message %}<div class="notice danger" role="alert">{{ error_message }}</div>{% endif %}
+<div class="workspace-grid"><div class="workspace-main"><section class="work-section"><div class="section-heading"><div><h2>Profile details</h2></div></div>
+<div class="settings-profile"><span class="avatar">{{ profile_initials }}</span><div><strong>{{ profile_name }}</strong><p class="text-small text-muted">{{ profile_email }}</p></div></div>
+<form method="POST" action="{{ url_for('admin_settings') }}" aria-label="Update profile">{{ csrf() }}<input type="hidden" name="action" value="update_profile"><div class="form-grid">{{ field('name','Full name',profile_name,maxlength=100) }}{{ field('email','Email address',profile_email,'email',maxlength=100,hint='Changing your email signs you out on all devices.') }}<div class="form-actions"><button type="submit" class="button button-primary">Save changes {{ icon('check',16) }}</button></div></div></form></section></div>
+<aside class="workspace-aside content-stack"><section class="work-section"><h2>Inventory export</h2><a class="button button-secondary" href="{{ url_for('export_data') }}">Export inventory {{ icon('download',16) }}</a></section>
+<section class="work-section"><h2>Organization access</h2><a class="button button-secondary" href="{{ url_for('branch_administration') }}">Branches and assignments {{ icon('arrow',16) }}</a></section></aside></div>
+{% endblock %}

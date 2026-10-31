@@ -1,0 +1,17 @@
+{% macro field(name, label, value='', type='text', required=true, min=none, max=none, step=none, maxlength=none, hint='', error='') %}
+  <div>
+    <label for="{{ name }}">
+      {{ label }}{% if required %} <span aria-hidden="true">*</span>{% endif %}
+    </label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value if value is not none else '' }}"
+           {% if required %}required{% endif %}
+           {% if min is not none %}min="{{ min }}"{% endif %}
+           {% if max is not none %}max="{{ max }}"{% endif %}
+           {% if step is not none %}step="{{ step }}"{% endif %}
+           {% if maxlength is not none %}maxlength="{{ maxlength }}"{% endif %}
+           {% if error %}aria-invalid="true"{% endif %}
+           {% if hint or error %}aria-describedby="{{ name ~ '-hint' if hint else '' }}{{ ' ' if hint and error else '' }}{{ name ~ '-error' if error else '' }}"{% endif %}>
+    {% if hint %}<small class="field-hint" id="{{ name }}-hint">{{ hint }}</small>{% endif %}
+    {% if error %}<small class="field-error" id="{{ name }}-error" role="alert">{{ error }}</small>{% endif %}
+  </div>
+{% endmacro %}

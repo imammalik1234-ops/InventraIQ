@@ -1,0 +1,133 @@
+{
+  "schema_version": "inventraiq-m5-manifest-v1",
+  "profile": "medium",
+  "status": "blocked_template",
+  "source": {
+    "identifier": "kaggle/m5-forecasting-accuracy",
+    "url": "https://www.kaggle.com/competitions/m5-forecasting-accuracy",
+    "revision": "accuracy-validation-d1-d1913",
+    "byte_identity": "unverified",
+    "provenance": "m5_historical_observation"
+  },
+  "rights": {
+    "decision": "BLOCKED",
+    "checked_on": "2026-10-22",
+    "terms_reference": "data/RIGHTS_REVIEW.md",
+    "accepted_terms_reference": null,
+    "allowed_real_uses": []
+  },
+  "files": [
+    {
+      "name": "calendar.csv",
+      "path": "data/private/raw/calendar.csv",
+      "sha256": null,
+      "size_bytes": null,
+      "columns": [
+        "date",
+        "wm_yr_wk",
+        "weekday",
+        "wday",
+        "month",
+        "year",
+        "d",
+        "event_name_1",
+        "event_type_1",
+        "event_name_2",
+        "event_type_2",
+        "snap_CA",
+        "snap_TX",
+        "snap_WI"
+      ],
+      "types": "calendar-v1"
+    },
+    {
+      "name": "sell_prices.csv",
+      "path": "data/private/raw/sell_prices.csv",
+      "sha256": null,
+      "size_bytes": null,
+      "columns": [
+        "store_id",
+        "item_id",
+        "wm_yr_wk",
+        "sell_price"
+      ],
+      "types": "weekly-price-v1"
+    },
+    {
+      "name": "sales_train_validation.csv",
+      "path": "data/private/raw/sales_train_validation.csv",
+      "sha256": null,
+      "size_bytes": null,
+      "columns": [
+        "id",
+        "item_id",
+        "dept_id",
+        "cat_id",
+        "store_id",
+        "state_id",
+        "d_1..d_1913"
+      ],
+      "types": "wide-units-v1"
+    }
+  ],
+  "branches": [
+    {
+      "store_id": "CA_1",
+      "branch_code": "DEMO-01"
+    },
+    {
+      "store_id": "TX_1",
+      "branch_code": "DEMO-02"
+    },
+    {
+      "store_id": "WI_1",
+      "branch_code": "DEMO-03"
+    }
+  ],
+  "selection": {
+    "algorithm": "shared-training-strata-v1",
+    "seed": "inventraiq-t13-v1",
+    "training_end_day": 1857,
+    "sku_cap": 300,
+    "store_algorithm": "first-per-state-v1"
+  },
+  "selected_item_ids": [],
+  "coverage": {
+    "first_day": 819,
+    "last_day": 1913,
+    "train_end_day": 1857,
+    "validation_first": 1858,
+    "validation_last": 1885,
+    "test_first": 1886,
+    "test_last": 1913,
+    "first_date": "2013-04-26",
+    "last_date": "2016-04-24",
+    "demo_as_of": "2016-04-24"
+  },
+  "transform": {
+    "date_shift_days": 0,
+    "observation_kind": "imported_daily_units",
+    "pos_sales": false,
+    "stock_effects": false,
+    "source_currency": "USD",
+    "operational_currency": "MYR",
+    "currency_conversion": false,
+    "source_day_semantics": "calendar_date_no_timezone_conversion",
+    "price_semantics": "weekly_observed_price_not_transaction_revenue",
+    "missing_price": "unknown_no_backfill",
+    "missing_coverage": "unknown_not_zero",
+    "source_labels": "anonymized_codes_not_brand_names",
+    "expiry": "unknown_no_inference",
+    "natural_key": [
+      "source_revision",
+      "store_id",
+      "item_id",
+      "date",
+      "measure_kind"
+    ]
+  },
+  "metadata_path": "data/private/metadata/selection.json",
+  "selection_metadata_sha256": null,
+  "reconciliation_path": "data/private/reconciliation/result.json",
+  "importer_revision": "not_implemented_T14"
+}

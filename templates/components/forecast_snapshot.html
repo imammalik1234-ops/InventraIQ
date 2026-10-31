@@ -1,0 +1,14 @@
+{% if forecast_batch %}
+<section class="work-section forecast-evidence" aria-label="Forecast snapshots" data-forecast-run="{{ forecast_batch.run_id or '' }}">
+<div class="section-heading"><div><p class="eyebrow">VERSIONED EVIDENCE</p><h2>Forecast snapshots</h2></div><span class="status-label">{{ forecast_batch.state|capitalize }}</span></div>
+<p role="status">{{ forecast_batch.reason }}</p>
+{% if forecast_batch.run_id %}
+<dl class="summary-ledger summary-ledger-metadata"><div><dt>Model</dt><dd>{{ forecast_batch.model_id }} {{ forecast_batch.model_version }}</dd></div><div><dt>Horizon</dt><dd>{{ forecast_batch.horizon_days }} days</dd></div><div><dt>Qualification</dt><dd>{{ forecast_batch.qualification }}</dd></div><div><dt>Freshness</dt><dd>{{ forecast_batch.freshness }}</dd></div></dl>
+<p class="scope-banner">Historical as-of <strong>{{ forecast_batch.as_of }}</strong><span>Generated {{ forecast_batch.generated_at }}</span><span>{{ forecast_batch.provenance }}</span></p>
+{% if forecast_batch.coverage %}<p class="field-hint">{{ forecast_batch.coverage.page_eligible_series }} of {{ forecast_batch.coverage.page_series }} displayed series eligible; {{ forecast_batch.coverage.observed_days }} observed of {{ forecast_batch.coverage.calendar_days }} calendar days. {{ forecast_batch.coverage.scope_series }} series in this scope.</p>{% endif %}
+<div class="table-scroll" role="region" tabindex="0" aria-labelledby="forecast-series-caption"><table><caption id="forecast-series-caption">Synthetic observed-unit estimates from batch {{ forecast_batch.run_id }}. These are not qualified production predictions.</caption><thead><tr><th scope="col">Branch</th><th scope="col">SKU</th><th scope="col">Status</th><th scope="col" class="numeric">Seven-day units</th></tr></thead><tbody>
+{% for item in forecast_batch['items'] %}<tr data-forecast-series="{{ item.branch_id }}:{{ item.sku_id }}"><td>{{ item.branch_id }}</td><th scope="row">{{ item.sku_code }}</th><td><span class="status-label">{{ item.forecast.status|replace('_',' ') }}</span></td><td class="numeric">{% if item.forecast.predicted_demand is not none %}{{ '%.2f'|format(item.forecast.predicted_demand) }}{% else %}Unavailable{% endif %}</td></tr>{% else %}<tr><td colspan="4">No forecast series in this scope.</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+<p class="workflow-note">No model is fitted during this request. Missing coverage is not zero demand.</p>
+</section>
+{% endif %}

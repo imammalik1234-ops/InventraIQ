@@ -1,0 +1,22 @@
+{% extends 'base.html' if current_user.is_authenticated else 'auth-base.html' %}
+{% from 'components/ui.html' import icon %}
+{% block title %}{{ code }} · Request unavailable{% endblock %}
+{% block content %}
+<section class="error-page">
+  <span class="error-symbol">{{ icon('search' if code==404 else 'shield',28) }}</span>
+  <p class="eyebrow">REQUEST {{ code }}</p>
+  {% if code==400 %}
+  <h1>Review your filters.</h1>
+  <p>{{ description }}</p>
+  <a class="button button-primary" href="{{ reset_url }}">Reset filters {{ icon('arrow',16) }}</a>
+  {% elif proposals_disabled %}
+  <h1>Assistant action review is switched off.</h1>
+  <p>You can still ask the read-only assistant to explain your stock. To record an action, use a workflow available to your account. No stock or orders have been changed.</p>
+  <a class="button button-primary" href="{{ url_for('index') }}">Back to workspace {{ icon('arrow',16) }}</a>
+  {% else %}
+  <h1>{{ 'We couldn’t find that page.' if code==404 else 'This area is restricted.' }}</h1>
+  <p>{{ 'The link may have changed, or this record is no longer available. Your current workspace is a good place to start.' if code==404 else 'Your account cannot open this page for the selected branch. Return to your workspace, choose an assigned branch, or contact your administrator for help.' }}</p>
+  <a class="button button-primary" href="{{ url_for('index') }}">Back to workspace {{ icon('arrow',16) }}</a>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header,icon %}
+{% block title %}Forecast evidence{% endblock %}
+{% block content %}
+{% call page_header('Headquarters planning' if is_admin else 'Branch insights','','INTELLIGENCE / FORECASTS') %}<a class="button button-secondary" href="{{ url_for('analytics',branch_id=request.args.get('branch_id')) }}">Analytics</a><button class="button button-primary" type="button" data-assistant-open data-assistant-prompt="recommendations" aria-haspopup="dialog" aria-controls="assistant-panel">{{ icon('spark',17) }} Review with assistant</button>{% endcall %}
+<p class="workflow-note">Demo forecasts · Recommendations require review and cannot change stock.</p>
+{% if forecast_clock %}
+  <details class="evidence-disclosure" aria-label="Forecast business dates"><summary>Forecast data details</summary>
+    <p id="forecast-historical-date">Historical forecasting as-of: <strong>{{ forecast_clock.historical_as_of or 'Unavailable' }}</strong> (inclusive source date). {{ forecast_clock.source_revision }} · {{ forecast_clock.provenance }}. Historical dates have not been shifted.</p>
+    <p id="forecast-operational-clock">Operational clock: {{ forecast_clock.operational_clock }} · {{ forecast_clock.operational_utc }}. This clock does not advance historical observations.</p>
+  </details>
+{% endif %}
+{% if recommendation_report %}
+  {% include 'components/recommendations.html' %}
+{% endif %}
+<details class="evidence-disclosure">
+  <summary>Versioned forecast snapshots and coverage</summary>
+  {% include 'components/forecast_snapshot.html' %}
+  {% if forecast_clock %}
+    {% for branch in forecast_clock.branches %}
+      <p>Branch {{ branch.branch_id }} · {{ branch.timezone }} · operational business date {{ branch.business_date }}.</p>
+    {% endfor %}
+    <p>Launch and stock-availability evidence remain unknown unless explicitly recorded.</p>
+  {% endif %}
+  {% if forecast_history %}
+    <section class="work-section" aria-label="Forecast series coverage" data-history-identity="{{ forecast_history.history_identity }}">
+      <h2>Observed-unit history</h2>
+      <p>Branch {{ forecast_history.contract.branch_id }} · {{ forecast_history.contract.sku_code }} · {{ forecast_history.contract.source_revision }}.</p>
+      <p>Training through {{ forecast_history.contract.forecast_origin }}; evaluation labels through {{ forecast_history.contract.evaluation_cutoff }}. {{ forecast_history.coverage.eligible_training }} eligible training days. {{ forecast_history.coverage.explicit_missing }} explicit missing days; {{ forecast_history.coverage.absent }} absent records.</p>
+      <p>Source prices and operational sales are excluded. Model output remains withheld.</p>
+    </section>
+  {% endif %}
+</details>
+
+{% endblock %}

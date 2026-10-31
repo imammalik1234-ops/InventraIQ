@@ -1,0 +1,37 @@
+{% from 'components/ui.html' import brand, icon %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14223f">
+  <title>{% block title %}Welcome{% endblock %} · InventraIQ</title>
+  <link rel="icon" href="{{ url_for('static',filename='images/inventraiq-favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/inventraiq.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/product.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/planning.css') }}">
+  <script src="{{ url_for('static',filename='js/form-guidance.js') }}" defer></script>
+  <script src="{{ url_for('static',filename='js/workspace.js') }}" defer></script>
+</head>
+<body class="product-auth">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="auth-page">
+    <aside class="auth-story" aria-label="About InventraIQ">
+      <a class="brand" href="{{ url_for('role_selection') }}">{{ brand() }}</a>
+      <div class="auth-story-content">
+        <p class="eyebrow">A CLEARER WAY TO OPERATE</p>
+        <h2>Everything in stock.<br><em>Everything in<br>perspective.</em></h2>
+        <p>Connect the details. See the bigger picture. Make your next inventory decision with clarity.</p>
+        <ol class="auth-operating-model" aria-label="How InventraIQ supports your work">
+          <li><span>{{ icon('box',17) }}</span><div><strong>Your stock, connected.</strong><p>One view across products, lots, and branches.</p></div></li>
+          <li><span>{{ icon('chart',17) }}</span><div><strong>Your priorities, in focus.</strong><p>Understand demand and spot what needs attention.</p></div></li>
+          <li><span>{{ icon('shield',17) }}</span><div><strong>Your decisions, informed.</strong><p>Clear evidence. Accountable actions.</p></div></li>
+        </ol>
+      </div>
+    </aside>
+    <main class="auth-main" id="main-content" tabindex="-1">
+      <div class="auth-top"><a class="brand auth-mobile-brand" href="{{ url_for('role_selection') }}">{{ brand() }}</a><a href="{{ url_for('role_selection') }}" class="text-link">Workspace access {{ icon('arrow',14) }}</a></div>
+      <div class="auth-box">{% block content %}{% endblock %}</div>
+    </main>
+  </div>
+</body>
+</html>

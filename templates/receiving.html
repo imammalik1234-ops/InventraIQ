@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, csrf %}
+
+{% macro receipt_fields() %}
+  <label>
+    Quantity
+    <input type="number" name="quantity" min="1" max="2147483647" step="1" required>
+  </label>
+  <label>
+    Delivery reference
+    <input name="external_reference" required maxlength="100">
+  </label>
+  <label>
+    Receipt type
+    <select name="receipt_kind">
+      <option value="normal">Ordinary receipt</option>
+      <option value="quarantine">Physical arrival to quarantine</option>
+    </select>
+  </label>
+  <label>
+    Reason
+    <input name="reason" required maxlength="255">
+  </label>
+  <label>
+    Delivery and observed label evidence
+    <input name="evidence" required maxlength="255">
+  </label>
+{% endmacro %}
+
+{% block title %}Receive branch stock{% endblock %}
+{% block content %}
+{% set expiry_labels = {'not_tracked':'Expiry date not tracked','healthy':'Within expiry limits','critical':'Expiry review: urgent','high':'Expiry review: high priority','early':'Expiry review soon','expired':'Expired','review':'Expiry details need review'} %}
+
+  {% call page_header('Receive stock', 'Match the delivery to its SKU, lot and observed expiry. Record the physical arrival once.', 'INVENTORY / RECEIVING') %}
+    <a class="button button-secondary" href="{{ url_for('catalog.catalog_page') }}">Shared catalog</a>
+    <a class="button button-secondary" href="{{ url_for('catalog.stock_page') }}">Lot inventory</a>
+  {% endcall %}
+  {% for receipt in receipts if receipt.receipt_id|string == request.args.get('receipt') %}
+  <p class="notice success" role="status">Receipt #{{ receipt.receipt_id }} recorded: {{ receipt.quantity }} units, {{ receipt.quarantined_quantity }} quarantined. Delivery reference {{ receipt.external_reference }}. <a href="#receipts-heading">Inspect the recorded receipt</a>.</p>
+  {% endfor %}
+
+  <ol class="workflow-steps" aria-label="Receiving workflow"><li><strong>Identify</strong><span>Approved product and supplier batch</span></li><li><strong>Inspect</strong><span>Quantity, expiry and condition</span></li><li><strong>Record</strong><span>Delivery reference and evidence</span></li></ol>
+  <p class="workflow-note">A batch (lot) groups units of one product with shared label details.</p>
+  <p id="receiving-guidance" class="workflow-note">
+    Read expiry dates in {{ settings.label_timezone or 'the company label timezone (contact headquarters to configure it)' }}.
+  </p>
+
+  <div class="workspace-grid"><div class="workspace-main"><section class="work-section" aria-labelledby="new-lot-heading">
+    <h2 id="new-lot-heading">Create and receive a new batch</h2>
+    <form class="form-grid" method="POST" action="{{ url_for('catalog.receiving_page', branch_id=request.args.get('branch_id')) }}"
+          aria-label="Receive new lot" aria-describedby="receiving-guidance quarantine-guidance" data-enhance-form>
+      {{ csrf() }}
+      <input type="hidden" name="mode" value="new_lot">
+      <label>
+        Approved product (SKU)
+        <select name="sku_id" required>
+          {% for sku in choices %}
+            <option value="{{ sku.sku_id }}" {% if sku.legacy_cutover_required %}disabled{% endif %}>
+              {{ sku.code }} - {{ sku.name }}
+              ({{ 'opening-balance review required' if sku.legacy_cutover_required else 'date required' if sku.policy and sku.policy.require_expiry else 'optional date' if sku.policy else 'quarantine only: policy review required' }})
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        New internal batch code
+        <input name="lot_code" required maxlength="80">
+      </label>
+      <label>
+        Supplier batch number
+        <input name="supplier_lot_code" required maxlength="100">
+      </label>
+      <label>
+        Actual expiry label date (if applicable)
+        <input type="date" name="expiry_date">
+      </label>
+      {{ receipt_fields() }}
+      <div class="form-actions">
+        <button class="button button-primary" type="submit" {% if not choices %}disabled{% endif %}>Receive new lot</button>
+      </div>
+    </form>
+    <p class="field-hint" id="quarantine-guidance">
+      Choose quarantine for expired, short-life, or missing required expiry dates. Quarantined units are held aside and cannot be sold until reviewed.
+    </p>
+    {% if not choices %}
+      <p class="notice">No approved SKU choices are available in this branch. Headquarters must approve the assortment before receiving.</p>
+    {% endif %}
+  </section>
+
+  </div><aside class="workspace-aside work-section"><h2>Inspect the actual delivery</h2><ul class="record-list"><li class="record-row">Verify the supplier lot and observed label.</li><li class="record-row">Choose quarantine for expired, damaged or short-life arrivals.</li></ul><dl class="summary-ledger"><div><dt>Approved SKU choices</dt><dd>{{ choices|length }}</dd></div><div><dt>Existing lot choices</dt><dd>{{ holdings|length }}</dd></div></dl></aside></div>
+
+  <section class="work-section" aria-labelledby="existing-lot-heading">
+    <h2 id="existing-lot-heading">Receive an existing batch</h2>
+    {% for lot in holdings %}
+      <details class="workflow-action">
+        <summary>{{ lot.sku_code }} / {{ lot.lot_code }} <span class="text-secondary">{{ expiry_labels.get(lot.status,lot.status|replace('_',' ')) }} · {{ lot.on_hand }} on hand</span></summary>
+      <form class="form-grid" method="POST" action="{{ url_for('catalog.receiving_page', branch_id=request.args.get('branch_id')) }}"
+            aria-label="Receive lot {{ lot.lot_code }}" aria-describedby="receiving-guidance quarantine-guidance" data-enhance-form>
+        {{ csrf() }}
+        <input type="hidden" name="mode" value="existing_lot">
+        <input type="hidden" name="sku_id" value="{{ lot.sku_id }}">
+        <input type="hidden" name="lot_id" value="{{ lot.lot_id }}">
+        <p class="full">Stored label zone: {{ lot.expiry_timezone or 'Undated' }}; expiry check: {{ expiry_labels.get(lot.status,lot.status|replace('_',' ')) }}.</p>
+        <label>
+          Observed expiry date (must match stored lot)
+          <input type="date" name="expiry_date" value="{{ lot.expiry_date or '' }}">
+        </label>
+        {{ receipt_fields() }}
+        <div class="form-actions">
+          <button class="button button-secondary" type="submit">Receive lot {{ lot.lot_code }}</button>
+        </div>
+      </form>
+      </details>
+    {% else %}
+      <p>No existing lots in this branch. Use the new-lot form for an actual new delivery batch.</p>
+    {% endfor %}
+  </section>
+
+  <section class="work-section" aria-labelledby="receipts-heading">
+    <h2 id="receipts-heading">Recent branch receipts</h2>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="receipts-caption">
+      <table>
+        <caption id="receipts-caption">Received quantities in units</caption>
+        <thead>
+          <tr>
+            <th scope="col">Receipt / delivery reference</th>
+            <th scope="col">Lot</th>
+            <th scope="col" class="numeric">Received</th>
+            <th scope="col" class="numeric">Quarantined</th>
+            <th scope="col">Received at (UTC, global time)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for receipt in receipts %}
+            <tr>
+              <th scope="row">#{{ receipt.receipt_id }} - {{ receipt.external_reference }}</th>
+              <td>#{{ receipt.lot_id }}</td>
+              <td class="numeric">{{ receipt.quantity }}</td>
+              <td class="numeric">{{ receipt.quarantined_quantity }}</td>
+              <td>{{ receipt.received_at_utc }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5">No receipts recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
